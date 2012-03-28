@@ -1,0 +1,8 @@
+*.py[c|o]
+.project
+*.sw*
+MANIFEST
+dist
+.coverage
+.svn
+docs/_build
