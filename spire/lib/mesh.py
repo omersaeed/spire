@@ -1,4 +1,4 @@
-from mesh.transport.http import HttpClient, WsgiServer
+from mesh.transport.http import HttpClient, HttpServer
 from scheme import *
 from scheme.supplemental import ObjectReference
 from spire.component import Service
@@ -6,8 +6,8 @@ from spire.unit import Dependency, Unit
 
 class MeshClient(Unit):
     configuration = Structure({
-        'client': ObjectReference('client', required=True, nonnull=True),
-        'target': Text('target', required=True, nonnull=True),
+        'api': Text(required=True, nonnull=True),
+        'client': ObjectReference(nonnull=True, default=HttpClient),
     }, required=True, nonnull=True)
 
     def __init__(self, configuration):
@@ -25,9 +25,9 @@ class MeshDependency(Dependency):
 
 class MeshService(Service):
     configuration = Structure({
-        'server': ObjectReference('server', nonnull=True, default=WsgiServer),
         'bundles': Sequence(ObjectReference(nonnull=True), required=True),
-    }, required=True, nonnull=True)
+        'server': ObjectReference(nonnull=True, default=HttpServer),
+    })
 
     def __init__(self, configuration):
         pass
