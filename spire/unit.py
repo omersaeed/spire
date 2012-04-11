@@ -1,5 +1,3 @@
-from threading import RLock
-
 from scheme import Structure
 
 from spire.exceptions import *
@@ -28,21 +26,35 @@ class UnitMeta(type):
     def __new__(metatype, name, bases, namespace):
         abstract = namespace.pop('__abstract__', False)
         unit = type.__new__(metatype, name, bases, namespace)
-        if abstract:
-            return unit
 
-        if unit.configuration is not None:
-            if isinstance(unit.configuration, dict):
-                unit.configuration = Structure(unit.configuration)
-            if not isinstance(unit.configuration, Structure):
-                raise SpireError()
+        configuration = {}
+        dependencies = {}
 
-        unit.dependencies = {}
+        for base in reversed(bases):
+            inherited_configuration = getattr(base, 'configuration', None)
+            if inherited_configuration:
+                configuration.update(inherited_configuration.structure)
+
+            inherited_dependencies = getattr(base, 'dependencies', None)
+            if inherited_dependencies:
+                dependencies.update(inherited_dependencies)
+
+        declared_configuration = namespace.get('configuration')
+        if declared_configuration:
+            if isinstance(declared_configuration, Structure):
+                declared_configuration = declared_configuration.structure
+            configuration.update(declared_configuration)
+
         for attr, value in namespace.iteritems():
             if isinstance(value, Dependency):
-                unit.dependencies[attr] = value
+                dependencies[attr] = value
 
-        unit.units[identify_class(unit)] = unit
+        unit.dependencies = dependencies
+        if configuration:
+            unit.configuration = Structure(configuration)
+
+        if not abstract:
+            unit.units[identify_class(unit)] = unit
         return unit
 
 class Unit(object):
@@ -59,7 +71,7 @@ class Unit(object):
         self.configuration = configuration
         self.identities = set()
 
-    def initialize(self):
+    def assemble(self):
         pass
 
     def _assume_identity(self, identity):
@@ -77,55 +89,25 @@ class UnitDependency(Dependency):
         token = 'unit:%s' % identify_class(unit)
         super(UnitDependency, self).__init__(token, unit, optional, scope)
 
-class UnitStack(object):
-    """A unit stack."""
+class Assembly(object):
+    """A unit assembly."""
 
     def __init__(self, principal):
         self.cache = {}
         self.configuration = {}
         self.principal = principal
         self.root = None
-        self.schema = self._construct_schema(principal)
         self.units = {}
 
-    def collate(self, contract):
-        collated = set()
-        for unit in self.units.itervalues():
-            if isinstance(unit, contract) and unit not in collated:
-                collated.add(unit)
-                yield unit
+    @property
+    def schema(self):
+        try:
+            return self._constructed_schema
+        except AttributeError:
+            pass
 
-    def configure(self, configuration):
-        self.configuration.update(self.schema.process(configuration))
-        return self
-
-    def deploy(self):
-        self.root = self.principal(None)
-        units = [self.root]
-
-        queue = [(self.root, [])]
-        while queue:
-            unit, tokens = queue.pop(0)
-            for name, dependency in unit.dependencies.iteritems():
-                if dependency.unit:
-                    path = tokens + [name]
-                    instance = self._deploy_unit(path, dependency)
-                    if instance:
-                        setattr(unit, name, instance)
-                        units.insert(0, instance)
-                        queue.append((instance, path))
-                    else:
-                        setattr(unit, name, None)
-
-        initialized = set()
-        for unit in units:
-            if unit not in initialized:
-                unit.initialize()
-                initialized.add(unit)
-
-    def _construct_schema(self, principal):
         schema = {}
-        queue = [(Dependency(None, principal), [])]
+        queue = [(Dependency(None, self.principal), [])]
         while queue:
             subject, tokens = queue.pop(0)
             for name, dependency in subject.unit.dependencies.iteritems():
@@ -136,9 +118,49 @@ class UnitStack(object):
                     if configuration:
                         for key in ('.'.join(path), dependency.token):
                             schema[key] = configuration
-        return Structure(schema, nonnull=True)
 
-    def _deploy_unit(self, path, dependency):
+        self._constructed_schema = Structure(schema, nonnull=True)
+        return self._constructed_schema
+
+    def assemble(self, configuration=None):
+        if configuration:
+            self.configure(configuration)
+
+        self.root = self.principal(None)
+        units = [self.root]
+
+        queue = [(self.root, [])]
+        while queue:
+            unit, tokens = queue.pop(0)
+            for name, dependency in unit.dependencies.iteritems():
+                if dependency.unit:
+                    path = tokens + [name]
+                    instance = self._assemble_unit(path, dependency)
+                    if instance:
+                        setattr(unit, name, instance)
+                        units.insert(0, instance)
+                        queue.append((instance, path))
+                    else:
+                        setattr(unit, name, None)
+
+        assembled = set()
+        for unit in units:
+            if unit not in assembled:
+                unit.assemble()
+                assembled.add(unit)
+
+    def collate(self, cls=None):
+        collated = set()
+        for unit in self.units.itervalues():
+            if (cls is None or isinstance(unit, cls)) and unit not in collated:
+                collated.add(unit)
+                yield unit
+
+    def configure(self, configuration):
+        self.configuration.update(self.schema.process(configuration))
+        return self
+
+    def _assemble_unit(self, path, dependency):
         identity = '.'.join(path)
         if identity in self.configuration:
             instance = dependency.unit(self.configuration[identity])
