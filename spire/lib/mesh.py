@@ -1,33 +1,33 @@
 from mesh.transport.http import HttpClient, HttpServer
 from scheme import *
 from scheme.supplemental import ObjectReference
-from spire.component import Service
-from spire.unit import Dependency, Unit
+
+from spire.unit import Configuration, Dependency, Unit
+from spire.wsgi import Application
 
 class MeshClient(Unit):
-    configuration = Structure({
-        'api': Text(required=True, nonnull=True),
+    abstract = True
+    configuration = Configuration({
         'client': ObjectReference(nonnull=True, default=HttpClient),
-    }, required=True, nonnull=True)
-
-    def __init__(self, configuration):
-        pass
+        'url': Text(nonempty=True),
+    })
 
 class MeshDependency(Dependency):
     """A mesh dependency."""
 
-    def __init__(self, name, version, optional=False, scope=None):
+    def __init__(self, name, version, optional=False):
         self.name = name
         self.version = version
 
         token = 'mesh:%s/%s' % (name, version)
-        super(MeshDependency, self).__init__(token, MeshClient, optional, scope)
+        super(MeshDependency, self).__init__(token, MeshClient, optional)
 
-class MeshService(Service):
-    configuration = Structure({
-        'bundles': Sequence(ObjectReference(nonnull=True), required=True),
+class MeshServer(Application):
+    abstract = True
+    configuration = Configuration({
+        'bundles': Sequence(ObjectReference(nonnull=True), required=True, unique=True),
         'server': ObjectReference(nonnull=True, default=HttpServer),
     })
 
-    def __init__(self, configuration):
-        pass
+    def __init__(self, bundles):
+        self.application = 
