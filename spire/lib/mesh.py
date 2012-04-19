@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 from mesh.transport.http import HttpClient, HttpServer
 from scheme import *
 from scheme.supplemental import ObjectReference
@@ -25,9 +27,12 @@ class MeshDependency(Dependency):
 class MeshServer(Application):
     abstract = True
     configuration = Configuration({
-        'bundles': Sequence(ObjectReference(nonnull=True), required=True, unique=True),
+        'bundles': Union((
+            Sequence(ObjectReference(nonnull=True), unique=True),
+            Map(Text(nonempty=True)),
+        ), required=True),
         'server': ObjectReference(nonnull=True, default=HttpServer),
     })
 
-    def __init__(self, bundles):
-        self.application = 
+    def __init__(self, bundles, server):
+        self.application = server(bundles)
