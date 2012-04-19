@@ -4,8 +4,8 @@ from mesh.transport.http import HttpClient, HttpServer
 from scheme import *
 from scheme.supplemental import ObjectReference
 
+from spire.wsgi.util import Mount
 from spire.unit import Configuration, Dependency, Unit
-from spire.wsgi import Application
 
 class MeshClient(Unit):
     abstract = True
@@ -14,17 +14,31 @@ class MeshClient(Unit):
         'url': Text(nonempty=True),
     })
 
+class MeshIntermediary(Mount):
+    abstract = True
+    configuration = Configuration({
+        
+    })
+
 class MeshDependency(Dependency):
     """A mesh dependency."""
 
-    def __init__(self, name, version, optional=False):
+    def __init__(self, name, version, intermediary=False, optional=False, deferred=True, **params):
         self.name = name
         self.version = version
 
-        token = 'mesh:%s/%s' % (name, version)
-        super(MeshDependency, self).__init__(token, MeshClient, optional)
+        unit = MeshClient
+        if intermediary:
+            deferred = False
+            unit = MeshIntermediary
 
-class MeshServer(Application):
+        token = 'mesh:%s/%s' % (name, version)
+        super(MeshDependency, self).__init__(token, unit, optional, deferred, **params)
+
+    def contribute(self):
+        return {'name': self.name, 'version': self.version}
+
+class MeshServer(Mount):
     abstract = True
     configuration = Configuration({
         'bundles': Union((

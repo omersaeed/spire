@@ -117,6 +117,9 @@ class Configuration(object):
         self.cache[instance] = configuration
         return configuration
 
+    def process(self, data, partial=False):
+        return self.schema.process(data, serialized=True, partial=partial)
+
     def register(self, unit):
         self.subject = unit
         return self
@@ -133,9 +136,16 @@ class Dependency(object):
         self.dependent = None
         self.instance = None
         self.optional = optional
-        self.params = params
         self.token = token
         self.unit = unit
+    
+        if params:
+            if self.configurable:
+                self.params = self.unit.configuration.process(params, partial=True)
+            else:
+                raise Exception()
+        else:
+            self.params = params
 
     def __get__(self, instance, owner):
         if instance is not None:
@@ -145,6 +155,10 @@ class Dependency(object):
 
     def __repr__(self):
         return '%s(%r)' % (type(self).__name__, self.token)
+
+    @property
+    def configurable(self):
+        return bool(self.unit.configuration)
 
     @property
     def configured_token(self):
@@ -163,9 +177,9 @@ class Dependency(object):
 
     @property
     def tokens(self):
-        tokens = ['%s+%s' % (self.dependent.identity, self.attr)]
+        tokens = ['%s/%s' % (self.dependent.identity, self.attr)]
         if self.token:
-            tokens.extend(['%s+%s' % (self.dependent.identity, self.token), self.token])
+            tokens.extend(['%s/%s' % (self.dependent.identity, self.token), self.token])
         return tokens
 
     def clone(self):
@@ -173,22 +187,28 @@ class Dependency(object):
         dependency.attr = dependency.dependent = None
         return dependency
 
+    def contribute(self):
+        return {}
+
     def get(self, instance):
         if self.instance is not None:
             return self.instance
 
         token = self.configured_token
-        if not token:
-            if self.unit.configuration and self.unit.configuration.required:
-                raise ConfigurationError(self.unit.identity)
-            else:
-                token = self.unit
+        if token:
+            token = (token, self.unit)
+        elif self.unit.configuration and self.unit.configuration.required:
+            raise ConfigurationError(self.unit.identity)
+        else:
+            token = self.unit
 
         self.instance = Assembly.acquire(token, self.instantiate)
         return self.instance
 
     def instantiate(self, assembly):
-        return self.unit(__token__=self.configured_token, **self.params)
+        params = self.contribute()
+        params.update(self.params)
+        return self.unit(__token__=self.configured_token, **params)
 
     def register(self, unit, name):
         self.attr = name
@@ -200,9 +220,12 @@ class Dependency(object):
         if not self.params:
             return schema
 
+        specified = set(self.contribute().keys())
+        specified.update(self.params.keys())
+
         fields = {}
         for name, field in schema.structure.iteritems():
-            if field.required and name in self.params:
+            if field.required and name in specified:
                 fields[name] = field.clone(required=False)
             else:
                 fields[name] = field

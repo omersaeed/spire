@@ -1,7 +1,9 @@
+from __future__ import absolute_import
+
 from scheme import Format
 
+from spire.wsgi.util import Dispatcher, Mount
 from spire.component import Registry
-from spire.wsgi import Application, Dispatcher
 
 try:
     import uwsgi
@@ -14,7 +16,7 @@ class Driver(object):
         Registry.deploy()
 
         self.dispatcher = Dispatcher()
-        for unit in Registry.collate(Application):
+        for unit in Registry.collate(Mount):
             self.dispatcher.mount(unit.configuration['path'], unit)
 
     def __call__(self, environ, start_response):

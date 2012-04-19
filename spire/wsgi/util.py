@@ -3,7 +3,7 @@ from werkzeug.exceptions import NotFound
 
 from spire.unit import Configuration, Unit
 
-class Application(Unit):
+class Mount(Unit):
     abstract = True
     configuration = Configuration({
         'path': Text(description='url path', nonempty=True)
@@ -49,7 +49,7 @@ class Dispatcher(object):
             self.mounts[path] = application
 
 
-class Simple(Application):
+class Simple(Mount):
     abstract = True
     def __call__(self, environ, start_response):
         from pprint import pformat
