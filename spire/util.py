@@ -55,10 +55,15 @@ def get_package_path(module, path=None):
         fullpath = os.path.join(fullpath, path)
     return fullpath
 
-def identify_class(cls):
-    if cls.__module__ == '__main__':
-        return cls.__name__
-    return '%s.%s' % (cls.__module__, cls.__name__)
+def identify_object(obj):
+    if isinstance(obj, ModuleType):
+        return obj.__name__
+    elif isinstance(obj, object) and isinstance(obj, type):
+        if obj.__module__ == '__main__':
+            return obj.__name__
+        return '%s.%s' % (obj.__module__, obj.__name__)
+    else:
+        raise TypeError(obj)
 
 def import_object(path):
     attr = None

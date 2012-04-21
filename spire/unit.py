@@ -3,239 +3,12 @@ from threading import RLock
 
 from scheme import Structure
 
+from spire.assembly import *
 from spire.exceptions import *
-from spire.util import get_constructor_args, identify_class, import_object, recursive_merge
-
-class Assembly(object):
-    """A spire assembly."""
-
-    cache = {}
-    configuration = {}
-    guard = RLock()
-    units = {}
-
-    @classmethod
-    def acquire(cls, token, instantiator):
-        cls.guard.acquire()
-        try:
-            try:
-                return cls.cache[token]
-            except KeyError:
-                instance = cls.cache[token] = instantiator(cls)
-                return instance
-        finally:
-            cls.guard.release()
-
-    @classmethod
-    def configure(cls, configuration):
-        recursive_merge(cls.configuration, cls.schema().process(configuration, serialized=True))
-
-    @classmethod
-    def schema(cls, reconstruct=False):
-        if not reconstruct:
-            try:
-                return cls._constructed_schema
-            except AttributeError:
-                pass
-
-        schema = {}
-        tokens = {}
-
-        for identity, unit in cls.units.iteritems():
-            configuration = unit.configuration
-            if configuration and not configuration.abstract:
-                if configuration.required:
-                    schema[identity] = configuration.schema.clone(required=True)
-                else:
-                    schema[identity] = configuration.schema
-
-            for attr, dependency in unit.dependencies.iteritems():
-                configuration = dependency.unit.configuration
-                if not configuration:
-                    continue
-
-                token = dependency.token
-                if token:
-                    if token in tokens:
-                        if not dependency.optional and not tokens[token][0]:
-                            tokens[token][0] = True
-                    else:
-                        tokens[token] = [not dependency.optional, configuration]
-
-                specific_schema = dependency.schema()
-                for token in dependency.tokens:
-                    if token != dependency.token:
-                        schema[token] = specific_schema
-
-        for token, (required, configuration) in tokens.iteritems():
-            if required and configuration.required:
-                schema[token] = configuration.schema.clone(required=True)
-            else:
-                schema[token] = configuration.schema
-
-        cls._constructed_schema = Structure(schema, nonnull=True, strict=False)
-        return cls._constructed_schema
-
-class Configuration(object):
-    """A spire configuration."""
-
-    def __init__(self, schema=None, abstract=False):
-        self.abstract = abstract
-        self.cache = {}
-        self.schema = Structure(schema or {}, nonnull=True)
-        self.subject = None
-
-    def __get__(self, instance, owner):
-        if instance is not None:
-            return self.get(instance)
-        else:
-            return self
-
-    @property
-    def required(self):
-        for field in self.schema.structure.itervalues():
-            if field.required:
-                return True
-        else:
-            return False
-
-    def get(self, instance):
-        try:
-            return self.cache[instance]
-        except KeyError:
-            pass
-
-        token = getattr(instance, '__token__', instance.identity)
-        try:
-            configuration = Assembly.configuration[token]
-        except KeyError:
-            try:
-                configuration = self.schema.process({})
-            except ValidationError:
-                raise ConfigurationError(token)
-
-        self.cache[instance] = configuration
-        return configuration
-
-    def process(self, data, partial=False):
-        return self.schema.process(data, serialized=True, partial=partial)
-
-    def register(self, unit):
-        self.subject = unit
-        return self
-
-class Dependency(object):
-    """A spire dependency."""
-
-    def __init__(self, unit, token=None, optional=False, deferred=True, **params):
-        if token is None:
-            token = unit.identity
-
-        self.attr = None
-        self.deferred = deferred
-        self.dependent = None
-        self.instance = None
-        self.optional = optional
-        self.token = token
-        self.unit = unit
-    
-        if params:
-            if self.configurable:
-                self.params = self.unit.configuration.process(params, partial=True)
-            else:
-                raise Exception()
-        else:
-            self.params = params
-
-    def __get__(self, instance, owner):
-        if instance is not None:
-            return self.get(instance)
-        else:
-            return self
-
-    def __repr__(self):
-        return '%s(%r)' % (type(self).__name__, self.token)
-
-    @property
-    def configurable(self):
-        return bool(self.unit.configuration)
-
-    @property
-    def configured_token(self):
-        try:
-            return self._configured_token
-        except AttributeError:
-            pass
-
-        for candidate in self.tokens:
-            if candidate in Assembly.configuration:
-                self._configured_token = candidate
-                return candidate
-        
-        self._configured_token = None
-        return None
-
-    @property
-    def tokens(self):
-        tokens = ['%s/%s' % (self.dependent.identity, self.attr)]
-        if self.token:
-            tokens.extend(['%s/%s' % (self.dependent.identity, self.token), self.token])
-        return tokens
-
-    def clone(self):
-        dependency = deepcopy(self)
-        dependency.attr = dependency.dependent = None
-        return dependency
-
-    def contribute(self):
-        return {}
-
-    def get(self, instance):
-        if self.instance is not None:
-            return self.instance
-
-        token = self.configured_token
-        if token:
-            token = (token, self.unit)
-        elif self.unit.configuration and self.unit.configuration.required:
-            raise ConfigurationError(self.unit.identity)
-        else:
-            token = self.unit
-
-        self.instance = Assembly.acquire(token, self.instantiate)
-        return self.instance
-
-    def instantiate(self, assembly):
-        params = self.contribute()
-        params.update(self.params)
-        return self.unit(__token__=self.configured_token, **params)
-
-    def register(self, unit, name):
-        self.attr = name
-        self.dependent = unit
-        return self
-
-    def schema(self):
-        schema = self.unit.configuration.schema
-        if not self.params:
-            return schema
-
-        specified = set(self.contribute().keys())
-        specified.update(self.params.keys())
-
-        fields = {}
-        for name, field in schema.structure.iteritems():
-            if field.required and name in specified:
-                fields[name] = field.clone(required=False)
-            else:
-                fields[name] = field
-
-        return Structure(fields, nonnull=True)
+from spire.util import get_constructor_args, identify_object, import_object, recursive_merge
 
 class UnitMeta(type):
     def __new__(metatype, name, bases, namespace):
-        abstract = namespace.pop('abstract', False)
-
         additional = None
         for base in reversed(bases):
             metaclass = getattr(base, '__metaclass__', None)
@@ -252,12 +25,7 @@ class UnitMeta(type):
         else:
             unit = type.__new__(metatype, name, bases, namespace)
 
-        try:
-            identify = unit.identify_unit
-        except AttributeError:
-            unit.identity = identify_class(unit)
-        else:
-            unit.identity = identify()
+        unit.identity = identify_object(unit)
 
         configuration = {}
         dependencies = {}
@@ -284,6 +52,7 @@ class UnitMeta(type):
         unit.dependencies = {}
         for attr, value in namespace.iteritems():
             if isinstance(value, Dependency):
+                Assembly.register_dependency(value)
                 unit.dependencies[attr] = value.register(unit, attr)
 
         for name, dependency in dependencies.iteritems():
@@ -292,16 +61,15 @@ class UnitMeta(type):
                 unit.dependencies[name] = dependency
                 setattr(unit, name, dependency)
 
-        if abstract:
-            if unit.configuration:
-                unit.configuration.abstract = True
-        else:
-            Assembly.units[unit.identity] = unit
-
+        Assembly.register_unit(unit.identity, unit)
         return unit
 
     def __call__(cls, *args, **params):
+        identity = params.pop('__identity__', None)
         token = params.pop('__token__', None)
+
+        if not token:
+            token = identity = cls.identity
 
         signature = get_constructor_args(cls)
         if args:
@@ -316,8 +84,10 @@ class UnitMeta(type):
                     raise TypeError('too many arguments')
 
         unit = cls.__new__(cls)
-        if token:
-            unit.__token__ = token
+        unit.__identity__ = identity
+        unit.__token__ = token
+
+        print 'INSTANTIATING %s: token=%r, identity=%r' % (cls.identity, token, identity)
 
         if cls.configuration:
             configuration = cls.configuration.get(unit)
@@ -343,7 +113,6 @@ class Unit(object):
     """A spire unit."""
 
     __metaclass__ = UnitMeta
-    abstract = True
 
     configuration = None
     dependencies = None

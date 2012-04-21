@@ -5,8 +5,9 @@ from werkzeug.exceptions import HTTPException, InternalServerError, NotFound
 from werkzeug.routing import Map, Rule
 from werkzeug.wrappers import Request as WsgiRequest, Response
 
-from spire.unit import Configuration
+from spire.unit import Configuration, Dependency
 from spire.util import call_with_supported_params, enumerate_modules, is_class, is_module, is_package
+from spire.wsgi.sessions import SessionManager
 from spire.wsgi.templates import TemplateEnvironment
 from spire.wsgi.util import Mount
 
@@ -35,13 +36,14 @@ class Request(WsgiRequest):
 class Application(Mount):
     """A WSGI application."""
 
-    abstract = True
     configuration = Configuration({
         'middleware': Sequence(ObjectReference(nonnull=True)),
         'templates': Sequence(Tuple((Text(nonempty=True), Text(nonempty=True)))),
         'urls': ObjectReference(nonnull=True, required=True),
         'views': Sequence(ObjectReference(nonnull=True), unique=True),
     })
+
+    sessions = Dependency(SessionManager, deferred=False)
 
     def __init__(self, urls, views=None, templates=None, middleware=None):
         if isinstance(urls, (list, tuple)):

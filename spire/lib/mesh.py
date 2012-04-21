@@ -32,8 +32,8 @@ class MeshDependency(Dependency):
             deferred = False
             unit = MeshIntermediary
 
-        token = 'mesh:%s/%s' % (name, version)
-        super(MeshDependency, self).__init__(token, unit, optional, deferred, **params)
+        token = 'mesh:%s-%s' % (name, version)
+        super(MeshDependency, self).__init__(unit, token, optional, deferred, **params)
 
     def contribute(self):
         return {'name': self.name, 'version': self.version}

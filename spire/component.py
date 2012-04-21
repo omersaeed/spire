@@ -1,8 +1,9 @@
 from scheme import Sequence, Structure
 from scheme.supplemental import ObjectReference
 
+from spire.assembly import Assembly, Configurable, Dependency
 from spire.exceptions import *
-from spire.unit import Assembly, Dependency, Unit
+from spire.unit import Unit
 
 class Facet(Dependency):
     """A component facet."""
@@ -10,8 +11,8 @@ class Facet(Dependency):
     def __init__(self, unit, optional=False, deferred=False, **params):
         super(Facet, self).__init__(unit, False, optional, deferred, **params)
 
-class Component(Unit):
-    abstract = True
+class Component(Unit, Configurable):
+    pass
 
 class Registry(object):
     """The component registry."""
@@ -36,7 +37,7 @@ class Registry(object):
 
         configuration = configuration.get('configuration')
         if configuration:
-            Assembly.configure(configuration)
+            Assembly.configure_assembly(configuration)
         else:
             raise ConfigurationError()
 
