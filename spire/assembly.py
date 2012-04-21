@@ -220,12 +220,15 @@ class Dependency(object):
                 raise ConfigurationError(token)
             if not Assembly.should_isolate(identity):
                 identity = None
-        else:
+        elif self.configuration_required:
             raise ConfigurationError(identity)
+        else:
+            token = identity
 
-        instance = self.cache[owner] = Assembly.acquire_unit((token, self.unit),
-            self.instantiate, (token, identity))
-        return instance
+        cache_token = (token, identity, self.unit)
+        print 'ACQUIRING: key=%r, token=%r, identity=%r' % (cache_token, token, identity)
+        self.cache[owner] = Assembly.acquire_unit(cache_token, self.instantiate, (token, identity))
+        return self.cache[owner]
 
     def instantiate(self, token, identity):
         params = self.contribute()

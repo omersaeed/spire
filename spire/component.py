@@ -5,14 +5,14 @@ from spire.assembly import Assembly, Configurable, Dependency
 from spire.exceptions import *
 from spire.unit import Unit
 
+class Component(Unit, Configurable):
+    pass
+
 class Facet(Dependency):
     """A component facet."""
 
     def __init__(self, unit, optional=False, deferred=False, **params):
         super(Facet, self).__init__(unit, False, optional, deferred, **params)
-
-class Component(Unit, Configurable):
-    pass
 
 class Registry(object):
     """The component registry."""
