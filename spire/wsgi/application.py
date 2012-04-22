@@ -1,4 +1,3 @@
-
 from scheme import Sequence, Text, Tuple
 from scheme.supplemental import ObjectReference
 from werkzeug.exceptions import HTTPException, InternalServerError, NotFound

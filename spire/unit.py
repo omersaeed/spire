@@ -7,6 +7,8 @@ from spire.assembly import *
 from spire.exceptions import *
 from spire.util import get_constructor_args, identify_object, import_object, recursive_merge
 
+__all__ = ('ConfigurableUnit', 'Unit')
+
 class UnitMeta(type):
     def __new__(metatype, name, bases, namespace):
         additional = None
@@ -122,3 +124,6 @@ class Unit(object):
         for dependency in self.dependencies.itervalues():
             if (cls is None or issubclass(dependency.unit, cls)):
                 yield dependency.get(self)
+
+class ConfigurableUnit(Unit, Configurable):
+    """A unit which can be directly configured."""

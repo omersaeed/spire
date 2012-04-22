@@ -107,11 +107,7 @@ class Configuration(object):
 
     @property
     def required(self):
-        for field in self.schema.structure.itervalues():
-            if field.required:
-                return True
-        else:
-            return False
+        return self.schema.has_required_fields
 
     def get(self, instance):
         try:
@@ -123,10 +119,7 @@ class Configuration(object):
         try:
             configuration = Assembly.configuration[token]
         except KeyError:
-            try:
-                configuration = self.schema.process({})
-            except ValidationError:
-                raise ConfigurationError(token)
+            configuration = self.schema.generate_default()
 
         self.cache[instance] = configuration
         return configuration
@@ -203,7 +196,8 @@ class Dependency(object):
 
         configuration = self.unit.configuration
         if not params:
-            return configuration.schema.clone(required=False)
+            required = configuration.schema.has_required_fields
+            return configuration.schema.clone(required=required)
 
         fields = {}
         for name, field in configuration.schema.structure.iteritems():
@@ -212,7 +206,9 @@ class Dependency(object):
             else:
                 fields[name] = field
 
-        return Structure(fields, nonnull=True)
+        structure = Structure(fields, nonnull=True)
+        structure.required = structure.has_required_fields
+        return structure
 
     def contribute(self):
         return {}
@@ -232,8 +228,6 @@ class Dependency(object):
                 raise ConfigurationError(token)
             if not Assembly.should_isolate(identity):
                 identity = None
-        elif self.configuration_required:
-            raise ConfigurationError(identity)
         else:
             token = identity
 

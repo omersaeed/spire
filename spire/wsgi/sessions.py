@@ -10,11 +10,11 @@ class SessionManager(Unit):
     """A session manager."""
 
     configuration = Configuration({
-        'enabled': Boolean(default=True),
+        'enabled': Boolean(default=True, required=True),
         'cookie': Structure({
             'name': Text(nonnull=True, min_length=1, default='sessionid'),
             'max_age': Integer(minimum=0),
-        }, generate_default=True),
+        }, generate_default=True, required=True),
         'store': Structure(
             structure={
                 FilesystemSessionStore: {
@@ -23,6 +23,7 @@ class SessionManager(Unit):
             },
             polymorphic_on=ObjectReference(name='implementation', nonnull=True),
             default={'implementation': FilesystemSessionStore},
+            required=True,
         )
     })
 
