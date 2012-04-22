@@ -67,6 +67,8 @@ class Assembly(object):
                 if subject.configuration:
                     if context:
                         structure = context.construct_schema()
+                        if context.token and structure.required:
+                            structure = structure.clone(required=False)
                     else:
                         structure = subject.configuration.schema.clone(required=False)
                     cls.schema.merge({'/'.join(tokens): structure})

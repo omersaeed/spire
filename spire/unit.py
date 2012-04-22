@@ -125,5 +125,9 @@ class Unit(object):
             if (cls is None or issubclass(dependency.unit, cls)):
                 yield dependency.get(self)
 
+    @classmethod
+    def deploy(cls, deferred=False, **params):
+        return Dependency(cls, False, deferred=deferred, **params)
+
 class ConfigurableUnit(Unit, Configurable):
     """A unit which can be directly configured."""

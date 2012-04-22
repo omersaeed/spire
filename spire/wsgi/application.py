@@ -93,10 +93,12 @@ class Application(Mount):
 
         view = self.views.get(endpoint)
         if not view:
+            view = self.views.get('default')
+        if not view:
             return NotFound()
 
         request = Request(environ, self, urls, params)
-        response = call_with_supported_params(view, request, **params)
+        response = call_with_supported_params(view, request, endpoint, **params)
 
         if not isinstance(response, Response):
             response = Response(response)
