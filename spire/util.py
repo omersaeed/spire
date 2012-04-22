@@ -89,6 +89,13 @@ def is_module(obj):
 def is_package(obj):
     return (isinstance(obj, ModuleType) and obj.__name__ == obj.__package__)
 
+def pruned(mapping, *keys):
+    pruned = {}
+    for key, value in mapping.iteritems():
+        if key not in keys:
+            pruned[key] = value
+    return pruned
+
 def recursive_merge(original, addition):
     for key, value in addition.iteritems():
         if key in original:

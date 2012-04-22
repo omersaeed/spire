@@ -18,6 +18,7 @@ class Request(WsgiRequest):
         super(Request, self).__init__(environ)
         self.application = application
         self.params = params
+        self.session = environ.get('spire.session')
         self.urls = urls
 
     def render(self, template, context=None, response=None, mimetype='text/html', **params):
@@ -43,7 +44,7 @@ class Application(Mount):
         'views': Sequence(ObjectReference(nonnull=True), unique=True),
     })
 
-    sessions = Dependency(SessionManager, deferred=False)
+    sessions = Dependency(SessionManager)
 
     def __init__(self, urls, views=None, templates=None, middleware=None):
         if isinstance(urls, (list, tuple)):
@@ -64,22 +65,28 @@ class Application(Mount):
                 self.application = implementation(self.application)
 
     def __call__(self, environ, start_response):
+        session = None
+        if self.sessions.enabled:
+            session = self.sessions.get(environ)
+
         environ.update({
             'spire.application': self,
+            'spire.session': session,
             'spire.template_context': {},
         })
 
         try:
             response = self.application(environ, start_response)
-            if isinstance(response, Response):
-                return response(environ, start_response)
-            else:
-                return response
         except HTTPException, error:
-            return error(environ, start_response)
+            response = error
         except Exception, error:
             raise
-            return InternalServerError()(environ, start_response)
+            response = InternalServerError()
+
+        if session and session.should_save:
+            self.sessions.save(session, response)
+
+        return response(environ, start_response)
 
     def dispatch(self, environ, start_response):
         urls = self.urls.bind_to_environ(environ)
@@ -91,6 +98,7 @@ class Application(Mount):
 
         request = Request(environ, self, urls, params)
         response = call_with_supported_params(view, request, **params)
+
         if not isinstance(response, Response):
             response = Response(response)
         return response

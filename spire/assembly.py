@@ -6,7 +6,7 @@ from scheme import Structure, ValidationError
 from spire.exceptions import *
 from spire.util import identify_object, import_object, recursive_merge
 
-__all__ = ('Assembly', 'Configurable', 'Configuration', 'Dependency')
+__all__ = ('Assembly', 'Configurable', 'Configuration', 'Dependency', 'configured_property')
 
 class Configurable(object):
     """A sentry class which indicates that subclasses can establish a configuration chain."""
@@ -137,6 +137,18 @@ class Configuration(object):
     def register(self, unit):
         self.subject = unit
         return self
+
+class configured_property(object):
+    """A property which delegates to a unit's configuration."""
+
+    def __init__(self, key):
+        self.key = key
+
+    def __get__(self, instance, owner):
+        if instance is not None:
+            return instance.configuration[self.key]
+        else:
+            return self
 
 class Dependency(object):
     """A spire dependency."""
