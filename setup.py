@@ -8,7 +8,12 @@ setup(
     author_email='mccoy.jordan@gmail.com',
     license='BSD',
     url='http://github.com/jordanm/spire',
-    packages=['spire'],
+    packages=[
+        'spire',
+        'spire.drivers',
+        'spire.lib',
+        'spire.wsgi',
+    ],
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',

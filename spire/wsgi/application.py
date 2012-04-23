@@ -90,6 +90,7 @@ class Application(Mount):
     def dispatch(self, environ, start_response):
         urls = self.urls.bind_to_environ(environ)
         endpoint, params = urls.match()
+        params['endpoint'] = endpoint
 
         view = self.views.get(endpoint)
         if not view:
@@ -98,7 +99,7 @@ class Application(Mount):
             return NotFound()
 
         request = Request(environ, self, urls, params)
-        response = call_with_supported_params(view, request, endpoint, **params)
+        response = call_with_supported_params(view, request, **params)
 
         if not isinstance(response, Response):
             response = Response(response)
