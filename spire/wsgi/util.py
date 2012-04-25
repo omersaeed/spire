@@ -33,7 +33,7 @@ class Dispatcher(object):
                 script = '/'.join(segments[:-1])
                 pathinfo = '/%s%s' % (segments[-1], pathinfo)
         else:
-            application = mounts.get(script)
+            application = mounts.get(script or '/')
             if not application:
                 return NotFound()(environ, start_response)
 
