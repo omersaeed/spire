@@ -148,8 +148,13 @@ class Middleware(object):
         pass
 
 def view(endpoint):
-    def decorator(obj):
-        obj.__viewable__ = True
-        obj.endpoint = endpoint
-        return obj
-    return decorator
+    if hasattr(endpoint, '__call__'):
+        endpoint.__viewable__ = True
+        endpoint.endpoint = endpoint.__name__
+        return endpoint
+    else:
+        def decorator(obj):
+            obj.__viewable__ = True
+            obj.endpoint = endpoint
+            return obj
+        return decorator
