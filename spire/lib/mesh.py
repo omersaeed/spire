@@ -5,21 +5,9 @@ from scheme import *
 from scheme.supplemental import ObjectReference
 
 from spire.assembly import Configuration, Dependency, configured_property
+from spire.wsgi.application import Request
 from spire.wsgi.util import Mount
 from spire.unit import Unit
-
-class ClientContext(object):
-    def __init__(self, unit, context):
-        self.context = context
-        self.unit = unit
-
-    def __enter__(self):
-        self.client = self.unit.instantiate(self.context)
-        self.client.register()
-        return self.client
-
-    def __exit__(self, *args):
-        self.client.unregister()
 
 class MeshClient(Unit):
     configuration = Configuration({
@@ -28,15 +16,14 @@ class MeshClient(Unit):
         'url': Text(nonempty=True),
     })
 
-    client = configured_property('client')
-    specification = configured_property('specification')
-    url = configured_property('url')
+    def __init__(self, client, specification, url):
+        self.instance = client(url, specification, self._construct_context)
+        self.instance.register()
 
-    def __call__(self, context=None):
-        return ClientContext(self, context)
-
-    def instantiate(self, context):
-        return self.client(self.url, self.specification, context)
+    def _construct_context(self):
+        request = Request.current_request()
+        if request:
+            return request.context
 
 class MeshDependency(Dependency):
     def __init__(self, name, version, optional=False, deferred=False, **params):
