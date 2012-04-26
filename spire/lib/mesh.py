@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 
-from mesh.transport.http import HttpClient, HttpServer
+from mesh.transport.http import HttpClient, HttpProxy, HttpServer
 from scheme import *
 from scheme.supplemental import ObjectReference
 
@@ -25,13 +25,31 @@ class MeshClient(Unit):
         if request:
             return request.context
 
+class MeshProxy(Mount):
+    configuration = Configuration({
+        'url': Text(nonempty=True),
+    })
+
+    def __init__(self, url):
+        self.application = HttpProxy(url, self._construct_context)
+
+    def _construct_context(self):
+        request = Request.current_request()
+        if request:
+            return request.context
+
 class MeshDependency(Dependency):
-    def __init__(self, name, version, optional=False, deferred=False, **params):
+    def __init__(self, name, version, proxy=False, optional=False, deferred=False, **params):
         self.name = name
         self.version = version
-        unit = MeshClient
 
-        token = 'mesh:%s-%s' % (name, version)
+        if proxy:
+            token = 'mesh-proxy:%s-%s' % (name, version)
+            unit = MeshProxy
+        else:
+            token = 'mesh:%s-%s' % (name, version)
+            unit = MeshClient
+
         super(MeshDependency, self).__init__(unit, token, optional, deferred, **params)
 
 class MeshServer(Mount):
