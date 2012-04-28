@@ -12,6 +12,7 @@ setup(
         'spire',
         'spire.drivers',
         'spire.lib',
+        'spire.schema',
         'spire.wsgi',
     ],
     classifiers=[
