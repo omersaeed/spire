@@ -1,7 +1,9 @@
 import os
+import re
 import sys
 from inspect import getargspec
 from types import ModuleType
+from uuid import uuid4
 
 def call_with_supported_params(callable, *args, **params):
     arguments = getargspec(callable)[0]
@@ -19,7 +21,7 @@ def enumerate_modules(package, import_modules=False):
                 module = import_object(module)
             yield module
 
-def get_constructor_args(cls, cache={}):
+def get_constructor_args(cls, ignore_private=True, cache={}):
     try:
         return cache[cls]
     except KeyError:
@@ -31,6 +33,9 @@ def get_constructor_args(cls, cache={}):
         arguments = []
     else:
         arguments = signature[0][1:]
+
+    if ignore_private:
+        arguments = [value for value in arguments if value[0] != '_']
 
     cache[cls] = arguments
     return arguments
@@ -89,6 +94,25 @@ def is_module(obj):
 def is_package(obj):
     return (isinstance(obj, ModuleType) and obj.__name__ == obj.__package__)
 
+PLURALIZATION_RULES = (
+    (re.compile(r'ife$'), re.compile(r'ife$'), 'ives'),
+    (re.compile(r'eau$'), re.compile(r'eau$'), 'eaux'),
+    (re.compile(r'lf$'), re.compile(r'lf$'), 'lves'),
+    (re.compile(r'[sxz]$'), re.compile(r'$'), 'es'),
+    (re.compile(r'[^aeioudgkprt]h$'), re.compile(r'$'), 'es'),
+    (re.compile(r'(qu|[^aeiou])y$'), re.compile(r'y$'), 'ies'),
+)
+
+def pluralize(word, quantity=None, rules=PLURALIZATION_RULES):
+    if quantity == 1: 
+        return word
+
+    for pattern, target, replacement in rules:
+        if pattern.search(word):
+            return target.sub(replacement, word)
+    else:
+        return word + 's'
+
 def pruned(mapping, *keys):
     pruned = {}
     for key, value in mapping.iteritems():
@@ -106,3 +130,6 @@ def recursive_merge(original, addition):
         else:
             original[key] = value
     return original
+
+def uniqid():
+    return str(uuid4())

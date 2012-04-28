@@ -1,3 +1,3 @@
 from spire.assembly import *
-from spire.component import Component, Facet, Registry
+from spire.component import *
 from spire.unit import *

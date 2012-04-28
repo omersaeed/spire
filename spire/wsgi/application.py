@@ -6,12 +6,12 @@ from werkzeug.routing import Map, RequestRedirect, Rule
 from werkzeug.wrappers import Request as WsgiRequest, Response
 
 from spire.assembly import Configuration, Dependency, configured_property
+from spire.local import LOCAL
 from spire.util import call_with_supported_params, enumerate_modules, is_class, is_module, is_package
-from spire.wsgi.sessions import SessionManager
 from spire.wsgi.templates import TemplateEnvironment
 from spire.wsgi.util import Mount
 
-LOCAL = Local()
+LOCAL.declare('wsgi.request')
 
 class Request(WsgiRequest):
     """A WSGI request."""
@@ -22,19 +22,15 @@ class Request(WsgiRequest):
         self.context = context or {}
         self.endpoint = None
         self.params = None
-        self.session = environ.get('spire.session')
         self.template_context = {}
         self.urls = urls
 
     def bind(self):
-        LOCAL.request = self
+        LOCAL.push('wsgi.request', self)
 
     @classmethod
     def current_request(cls):
-        try:
-            return LOCAL.request
-        except AttributeError:
-            return None
+        return LOCAL.get('wsgi.request')
 
     def match(self):
         if self.endpoint:
@@ -61,7 +57,7 @@ class Request(WsgiRequest):
         return self.application.environment.render_template(template, template_context)
 
     def unbind(self):
-        release_local(LOCAL)
+        LOCAL.pop('wsgi.request')
 
     def url_for(self, endpoint, **params):
         return self.urls.build(endpoint, params)
@@ -70,14 +66,12 @@ class Application(Mount):
     """A WSGI application."""
 
     configuration = Configuration({
-        'mediators': Sequence(ObjectReference(nonnull=True)),
+        'mediators': Sequence(Text(nonempty=True), unique=True),
         'middleware': Sequence(ObjectReference(nonnull=True)),
         'templates': Sequence(Tuple((Text(nonempty=True), Text(nonempty=True)))),
         'urls': ObjectReference(nonnull=True, required=True),
         'views': Sequence(ObjectReference(nonnull=True), unique=True),
     })
-
-    sessions = Dependency(SessionManager)
 
     def __init__(self, urls, views=None, templates=None, mediators=None, middleware=None):
         if isinstance(urls, (list, tuple)):
@@ -95,7 +89,7 @@ class Application(Mount):
         self.mediators = []
         if mediators:
             for mediator in mediators:
-                self.mediators.append(mediator())
+                self.mediators.append(getattr(self, mediator))
 
         self.application = self.dispatch
         if middleware:
@@ -103,15 +97,6 @@ class Application(Mount):
                 self.application = implementation(self.application)
 
     def __call__(self, environ, start_response):
-        session = None
-        if self.sessions.enabled:
-            session = self.sessions.get(environ)
-
-        environ.update({
-            'spire.application': self,
-            'spire.session': session,
-        })
-
         try:
             response = self.application(environ, start_response)
         except HTTPException, error:
@@ -119,9 +104,6 @@ class Application(Mount):
         except Exception, error:
             raise
             response = InternalServerError()
-
-        if session and session.should_save:
-            self.sessions.save(session, response)
 
         return response(environ, start_response)
 
@@ -136,8 +118,10 @@ class Application(Mount):
             mediators = self.mediators
             for mediator in mediators:
                 response = mediator.mediate_request(request)
-                if response:
+                if isinstance(response, Response):
                     break
+                else:
+                    response = None
 
             view = None
             if not response:

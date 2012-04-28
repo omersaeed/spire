@@ -15,10 +15,10 @@ class Assembly(object):
     """The spire assembly."""
 
     cache = {}
+    classes = {}
     configuration = {}
     guard = RLock()
     schema = Structure({})
-    units = {}
 
     @classmethod
     def acquire_unit(cls, token, instantiator, arguments):
@@ -47,19 +47,21 @@ class Assembly(object):
         token = dependency.token
         if not (dependency.configurable and token):
             return
-        
+
         configuration = dependency.unit.configuration
         if token in cls.schema.structure:
             structure = cls.schema.structure[token]
             if configuration.required and not dependency.optional and not structure.required:
                 structure.required = True
         else:
-            required = (configuration.required and not dependency.optional)
-            cls.schema.merge({token: configuration.schema.clone(required=required)})
+            schema = dependency.construct_schema(generic=True)
+            if dependency.optional:
+                schema = schema.clone(required=False)
+            cls.schema.merge({token: schema})
 
     @classmethod
-    def register_unit(cls, identity, unit):
-        cls.units[identity] = unit
+    def register_class(cls, identity, unit):
+        cls.classes[identity] = unit
         if cls.is_configurable(unit):
             queue = [(unit, [identity], None)]
             while queue:
@@ -192,9 +194,10 @@ class Dependency(object):
         dependency.cache = {}
         return dependency
 
-    def construct_schema(self):
+    def construct_schema(self, generic=False):
         params = self.contribute()
-        params.update(self.params)
+        if not generic:
+            params.update(self.params)
 
         configuration = self.unit.configuration
         if not params:

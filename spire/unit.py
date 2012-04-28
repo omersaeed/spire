@@ -63,7 +63,7 @@ class UnitMeta(type):
                 unit.dependencies[name] = dependency
                 setattr(unit, name, dependency)
 
-        Assembly.register_unit(unit.identity, unit)
+        Assembly.register_class(unit.identity, unit)
         return unit
 
     def __call__(cls, *args, **params):

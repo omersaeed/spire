@@ -4,10 +4,11 @@ from werkzeug.contrib.sessions import FilesystemSessionStore, SessionStore, Sess
 from werkzeug.utils import dump_cookie, parse_cookie
 
 from spire import Configuration, Unit, configured_property
+from spire.wsgi import Mediator
 from spire.util import pruned
 
-class SessionManager(Unit):
-    """A session manager."""
+class SessionMediator(Unit, Mediator):
+    """A session mediator."""
 
     configuration = Configuration({
         'enabled': Boolean(default=True, required=True),
@@ -33,7 +34,7 @@ class SessionManager(Unit):
         parameters = pruned(store, 'implementation')
         self.store = store['implementation'](**parameters)
 
-    def get(self, environ):
+    def get_session(self, environ):
         cookie = parse_cookie(environ.get('HTTP_COOKIE', ''))
         id = cookie.get(self.configuration['cookie']['name'])
         if id is not None:
@@ -41,15 +42,22 @@ class SessionManager(Unit):
         else:
             return self.store.new()
 
-    def save(self, session, response):
-        self.store.save(session)
-        self._set_cookie(response, session.sid)
+    def mediate_request(self, request):
+        request.session = None
+        if self.enabled:
+            request.session = self.get_session(request.environ)
 
-    def _set_cookie(self, response, value):
+    def mediate_response(self, request, response):
+        session = request.session
+        if session and session.should_save:
+            self.save_session(session, response)
+
+    def save_session(self, session, response):
+        self.store.save(session)
         params = self.configuration['cookie']
         response.set_cookie(
             key=params['name'],
-            value=value,
+            value=session.sid,
             max_age=params.get('max_age'),
             expires=params.get('expires'),
             domain=params.get('domain'),
