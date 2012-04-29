@@ -54,6 +54,10 @@ class MeshProxy(Mount):
             context_key='spire.context', context_header_prefix=CONTEXT_HEADER_PREFIX))
 
     def _construct_context(self):
+        context = LOCAL.get('mesh.context')
+        if context:
+            return context
+
         request = Request.current_request()
         if request:
             return request.context

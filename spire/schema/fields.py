@@ -4,8 +4,10 @@ from sqlalchemy import Column, ForeignKey as _ForeignKey, types
 from sqlalchemy.ext.mutable import Mutable
 from sqlalchemy.types import TypeDecorator
 
+from spire.util import uniqid
+
 __all__ = ('Boolean', 'Date', 'DateTime', 'Decimal', 'Email', 'Enumeration', 'Float',
-    'ForeignKey', 'Integer', 'Text', 'Time', 'UUID')
+    'ForeignKey', 'Identifier', 'Integer', 'Text', 'Time', 'UUID')
 
 class MutableDict(Mutable, dict):
     @classmethod
@@ -164,6 +166,9 @@ def ForeignKey(column, **params):
             column_params[name] = params.pop(name)
 
     return Column(_ForeignKey(column, **params), **column_params)
+
+def Identifier(**params):
+    return Column(UUIDType(), nullable=False, primary_key=True, default=uniqid, **params)
 
 def Integer(minimum=None, maximum=None, **params):
     return Column(IntegerType(minimum, maximum), **params)

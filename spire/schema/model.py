@@ -14,18 +14,22 @@ __all__ = ('Model',)
 MAPPER_PARAMS = get_constructor_args(Mapper)
 SESSIONS = LOCAL.subset_proxy('schema.session')
 
-class SchemaRegistry(object):
+class Schema(object):
     guard = Lock()
     schemas = {}
 
+    def __init__(self, name):
+        self.metadata = MetaData()
+        self.name = name
+
     @classmethod
-    def get_metadata(cls, schema):
+    def register(cls, name):
         cls.guard.acquire()
         try:
-            if schema not in cls.schemas:
-                cls.schemas[schema] = MetaData()
-                SESSIONS.declare(schema)
-            return cls.schemas[schema]
+            if name not in cls.schemas:
+                cls.schemas[name] = cls(name)
+                SESSIONS.declare(name)
+            return cls.schemas[name]
         finally:
             cls.guard.release()
 
@@ -54,11 +58,8 @@ class AttributeValidator(object):
 
 class ModelMeta(DeclarativeMeta):
     def __new__(metatype, name, bases, namespace):
-        schema = namespace.get('schema')
-        if schema is None:
-            namespace['schema'] = None
-
-        namespace['metadata'] = SchemaRegistry.get_metadata(schema)
+        schema = namespace['schema'] = Schema.register(namespace.get('schema'))
+        namespace['metadata'] = schema.metadata
         tablename = None
 
         meta = namespace.pop('meta', None)
@@ -106,7 +107,7 @@ class ModelMeta(DeclarativeMeta):
                 elif default.is_callable:
                     setattr(instance, column.name, default.arg(None))
 
-        session = SESSIONS.get(cls.schema)
+        session = SESSIONS.get(cls.schema.name)
         if session:
             session.add(instance)
 
@@ -133,12 +134,12 @@ class ModelBase(object):
 
     @classmethod
     def get(cls, **filters):
-        session = SESSIONS.require(cls.schema)
+        session = SESSIONS.require(cls.schema.name)
         return session.query(cls).filter_by(**filters).one()
 
     @classmethod
     def query(cls, *args, **params):
-        session = SESSIONS.require(cls.schema)
+        session = SESSIONS.require(cls.schema.name)
         return session.query(cls, *args, **params)
     
 Model = declarative_base(cls=ModelBase, constructor=None, name='Model', metaclass=ModelMeta)
