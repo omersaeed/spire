@@ -34,8 +34,6 @@ class Registry(object):
         configuration = configuration.get('configuration')
         if configuration:
             Assembly.configure_assembly(configuration)
-        else:
-            raise ConfigurationError()
 
     @classmethod
     def deploy(cls):

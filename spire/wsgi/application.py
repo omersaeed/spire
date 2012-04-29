@@ -19,7 +19,7 @@ class Request(WsgiRequest):
     def __init__(self, application, environ, urls, context=None):
         super(Request, self).__init__(environ)
         self.application = application
-        self.context = context or {}
+        self.context = context or {'test': 'test'}
         self.endpoint = None
         self.params = None
         self.template_context = {}

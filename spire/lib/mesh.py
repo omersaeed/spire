@@ -5,9 +5,24 @@ from scheme import *
 from scheme.supplemental import ObjectReference
 
 from spire.assembly import Configuration, Dependency, configured_property
+from spire.context import ContextParserMiddleware
+from spire.local import LOCAL
+from spire.unit import Unit
 from spire.wsgi.application import Request
 from spire.wsgi.util import Mount
-from spire.unit import Unit
+
+CONTEXT_HEADER_PREFIX = 'X-SPIRE-'
+
+LOCAL.declare('mesh.context')
+
+class ContextManagerMiddleware(ContextParserMiddleware):
+    def __call__(self, environ, start_response):
+        self._parse_context(environ)
+        LOCAL.push('mesh.context', environ[self.key])
+
+        response = self.application(environ, start_response)
+        LOCAL.pop('mesh.context')
+        return response
 
 class MeshClient(Unit):
     configuration = Configuration({
@@ -17,10 +32,14 @@ class MeshClient(Unit):
     })
 
     def __init__(self, client, specification, url):
-        self.instance = client(url, specification, self._construct_context)
-        self.instance.register()
+        self.instance = client(url, specification, self._construct_context,
+            context_header_prefix=CONTEXT_HEADER_PREFIX).register()
 
     def _construct_context(self):
+        context = LOCAL.get('mesh.context')
+        if context:
+            return context
+
         request = Request.current_request()
         if request:
             return request.context
@@ -31,7 +50,8 @@ class MeshProxy(Mount):
     })
 
     def __init__(self, url):
-        self.application = HttpProxy(url, self._construct_context)
+        self.application = ContextParserMiddleware(HttpProxy(url, self._construct_context,
+            context_key='spire.context', context_header_prefix=CONTEXT_HEADER_PREFIX))
 
     def _construct_context(self):
         request = Request.current_request()
@@ -59,4 +79,4 @@ class MeshServer(Mount):
     })
 
     def __init__(self, bundles, server):
-        self.application = server(bundles)
+        self.application = ContextManagerMiddleware(server(bundles, context_key='spire.context'))
