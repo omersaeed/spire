@@ -45,7 +45,9 @@ class Request(WsgiRequest):
 
     def render(self, template, context=None, response=None, mimetype='text/html', **params):
         response = response or Response(mimetype=mimetype)
-        response.data = self.render_template(template, context, **params)
+        full_context = dict(context or {})
+        full_context.update(self.context)
+        response.data = self.render_template(template, full_context, **params)
         return response
 
     def render_template(self, template, context=None, **params):
@@ -185,6 +187,10 @@ class Mediator(object):
         return None
 
     def mediate_request(self, request):
+        """
+        returns:
+            None or a Response object to short-circuit the response creation
+        """
         return None
 
     def mediate_response(self, request, response):
