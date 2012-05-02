@@ -1,8 +1,10 @@
 import sys
+import os
 
 from scheme import Format
 
 from spire.component import Registry
+
 
 class Driver(object):
     def __init__(self, configuration):
@@ -17,4 +19,7 @@ class Driver(object):
         Registry.deploy()
 
 if __name__ == '__main__':
+    if os.getenv('PYTHONSTARTUP', False):
+        if os.path.exists(os.environ['PYTHONSTARTUP']):
+            execfile(os.environ['PYTHONSTARTUP'])
     Driver(sys.argv[1])
