@@ -11,21 +11,24 @@ __all__ = ('ConfigurableUnit', 'Unit')
 
 class UnitMeta(type):
     def __new__(metatype, name, bases, namespace):
-        additional = None
+        secondary = None
         for base in reversed(bases):
             metaclass = getattr(base, '__metaclass__', None)
             if metaclass and metaclass is not metatype:
-                if not additional:
-                    additional = metaclass
-                elif metaclass is not additional:
-                    raise SpireError()
+                if not secondary:
+                    secondary = metaclass
+                elif metaclass is not secondary:
+                    raise SpireError('cannot reconcile more then two metaclass bases')
 
         unit = None
-        if additional:
-            metatype = type('metaclass', (metatype, additional), {})
-            unit = additional.__new__(metatype, name, bases, namespace)
+        if secondary:
+            metatype = type('metaclass', (metatype, secondary), {
+                '__secondary_metaclass__': secondary})
+            unit = secondary.__new__(metatype, name, bases, namespace)
+            unit.__metaclass__ = metatype
         else:
-            unit = type.__new__(metatype, name, bases, namespace)
+            secondary = getattr(bases[0], '__secondary_metaclass__', type)
+            unit = secondary.__new__(metatype, name, bases, namespace)
 
         unit.identity = identify_object(unit)
 

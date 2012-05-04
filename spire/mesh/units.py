@@ -11,6 +11,8 @@ from spire.unit import Unit
 from spire.wsgi.application import Request
 from spire.wsgi.util import Mount
 
+__all__ = ('MeshClient', 'MeshProxy', 'MeshDependency', 'MeshServer')
+
 CONTEXT_HEADER_PREFIX = 'X-SPIRE-'
 ContextLocal = ContextLocals.declare('mesh.context')
 
