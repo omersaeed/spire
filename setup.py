@@ -11,7 +11,7 @@ setup(
     packages=[
         'spire',
         'spire.drivers',
-        'spire.lib',
+        'spire.mesh',
         'spire.schema',
         'spire.wsgi',
     ],
