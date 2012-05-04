@@ -47,11 +47,3 @@ class Dispatcher(object):
         path = '/' + path.strip('/')
         if path not in self.mounts:
             self.mounts[path] = application
-
-
-class Simple(Mount):
-    abstract = True
-    def __call__(self, environ, start_response):
-        from pprint import pformat
-        from werkzeug.wrappers import Response
-        return Response(pformat(environ))(environ, start_response)

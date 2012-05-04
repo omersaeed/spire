@@ -1,10 +1,27 @@
 from threading import Lock
 
-from werkzeug.local import LocalStack
+from werkzeug.local import LocalStack, release_local
 
 from spire.exceptions import LocalError
 
-class SubsetProxy(object):
+class StackProxy(object):
+    def __init__(self, manager, token):
+        self.manager = manager
+        self.token = token
+
+    def get(self):
+        return self.manager.get(self.token)
+
+    def push(self, value):
+        return self.manager.push(self.token, value)
+
+    def pop(self):
+        return self.manager.pop(self.token)
+
+    def require(self):
+        return self.manager.require(self.token)
+
+class PrefixedProxy(object):
     def __init__(self, manager, prefix):
         self.manager = manager
         self.prefix = [prefix]
@@ -31,16 +48,20 @@ class SubsetProxy(object):
             token = [token]
         return tuple(self.prefix + token)
 
-class LocalManager(object):
+class ContextLocalManager(object):
     def __init__(self):
         self.guard = Lock()
         self.locals = {}
+
+    def create_prefixed_proxy(self, prefix):
+        return PrefixedProxy(self, prefix)
 
     def declare(self, token):
         self.guard.acquire()
         try:
             if token not in self.locals:
                 self.locals[token] = LocalStack()
+            return StackProxy(self, token)
         finally:
             self.guard.release()
 
@@ -54,6 +75,10 @@ class LocalManager(object):
     def pop(self, token):
         return self.locals[token].pop()
 
+    def purge(self):
+        for stack in self.locals.itervalues():
+            release_local(stack)
+
     def require(self, token):
         value = self.locals[token].top
         if value is not None:
@@ -61,7 +86,4 @@ class LocalManager(object):
         else:
             raise LocalError(token)
 
-    def subset_proxy(self, prefix):
-        return SubsetProxy(self, prefix)
-
-LOCAL = LocalManager()
+ContextLocals = ContextLocalManager()

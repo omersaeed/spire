@@ -6,32 +6,12 @@ from sqlalchemy.orm import mapper
 from sqlalchemy.orm.mapper import Mapper
 from sqlalchemy.orm.session import object_session
 
-from spire.local import LOCAL
+from spire.schema.schema import Schema, SessionLocals
 from spire.util import get_constructor_args, pluralize
 
 __all__ = ('Model',)
 
 MAPPER_PARAMS = get_constructor_args(Mapper)
-SESSIONS = LOCAL.subset_proxy('schema.session')
-
-class Schema(object):
-    guard = Lock()
-    schemas = {}
-
-    def __init__(self, name):
-        self.metadata = MetaData()
-        self.name = name
-
-    @classmethod
-    def register(cls, name):
-        cls.guard.acquire()
-        try:
-            if name not in cls.schemas:
-                cls.schemas[name] = cls(name)
-                SESSIONS.declare(name)
-            return cls.schemas[name]
-        finally:
-            cls.guard.release()
 
 class AttributeValidator(object):
     def __init__(self, column):
@@ -107,10 +87,6 @@ class ModelMeta(DeclarativeMeta):
                 elif default.is_callable:
                     setattr(instance, column.name, default.arg(None))
 
-        session = SESSIONS.get(cls.schema.name)
-        if session:
-            session.add(instance)
-
         return instance
 
 class ModelBase(object):
@@ -129,18 +105,19 @@ class ModelBase(object):
         except AttributeError:
             return id(self)
 
-    def delete(self):
-        object_session(self).delete(self)
+    @property
+    def session(self):
+        return object_session(self)
 
-    @classmethod
-    def get(cls, **filters):
-        session = SESSIONS.require(cls.schema.name)
-        return session.query(cls).filter_by(**filters).one()
+    def update_with_mapping(self, mapping=None, **params):
+        cls = type(self)
+        for attr, value in params.iteritems():
+            setattr(self, attr, value)
+        if mapping:
+            for attr, value in mapping.iteritems():
+                if attr not in params:
+                    setattr(self, attr, value)
+        return self
 
-    @classmethod
-    def query(cls, *args, **params):
-        session = SESSIONS.require(cls.schema.name)
-        return session.query(cls, *args, **params)
-    
 Model = declarative_base(cls=ModelBase, constructor=None, name='Model', metaclass=ModelMeta)
 event.listen(mapper, 'mapper_configured', AttributeValidator._attach_validators)

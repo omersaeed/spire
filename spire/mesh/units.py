@@ -6,22 +6,21 @@ from scheme.supplemental import ObjectReference
 
 from spire.assembly import Configuration, Dependency, configured_property
 from spire.context import ContextParserMiddleware
-from spire.local import LOCAL
+from spire.local import ContextLocals
 from spire.unit import Unit
 from spire.wsgi.application import Request
 from spire.wsgi.util import Mount
 
 CONTEXT_HEADER_PREFIX = 'X-SPIRE-'
-
-LOCAL.declare('mesh.context')
+ContextLocal = ContextLocals.declare('mesh.context')
 
 class ContextManagerMiddleware(ContextParserMiddleware):
     def __call__(self, environ, start_response):
         self._parse_context(environ)
-        LOCAL.push('mesh.context', environ[self.key])
+        ContextLocal.push(environ[self.key])
 
         response = self.application(environ, start_response)
-        LOCAL.pop('mesh.context')
+        ContextLocal.pop()
         return response
 
 class MeshClient(Unit):
@@ -36,7 +35,7 @@ class MeshClient(Unit):
             context_header_prefix=CONTEXT_HEADER_PREFIX).register()
 
     def _construct_context(self):
-        context = LOCAL.get('mesh.context')
+        context = ContextLocal.get()
         if context:
             return context
 
@@ -54,7 +53,7 @@ class MeshProxy(Mount):
             context_key='spire.context', context_header_prefix=CONTEXT_HEADER_PREFIX))
 
     def _construct_context(self):
-        context = LOCAL.get('mesh.context')
+        context = ContextLocal.get()
         if context:
             return context
 

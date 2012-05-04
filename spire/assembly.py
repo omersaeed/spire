@@ -27,6 +27,7 @@ class Assembly(object):
             try:
                 return cls.cache[token]
             except KeyError:
+                print 'REGISTERING token: %s' % repr(token)
                 instance = cls.cache[token] = instantiator(*arguments)
                 return instance
         finally:
@@ -77,6 +78,16 @@ class Assembly(object):
 
                 for attr, dependency in subject.dependencies.iteritems():
                     queue.append((dependency.unit, tokens + [attr], dependency))
+
+    @classmethod
+    def satisfy_dependency(cls, token, unit):
+        cache_token = (token, None, type(unit))
+        cls.guard.acquire()
+        try:
+            if cache_token not in cls.cache:
+                cls.cache[cache_token] = unit
+        finally:
+            cls.guard.release()
 
     @classmethod
     def should_isolate(cls, identity):
@@ -218,23 +229,28 @@ class Dependency(object):
     def contribute(self):
         return {}
 
-    def get(self, owner):
+    def get(self, owner=None):
         try:
             return self.cache[owner]
         except KeyError:
             pass
 
-        identity = '%s/%s' % (owner.__identity__, self.attr)
-        if identity in Assembly.configuration:
-            token = identity
-        elif self.token:
-            token = self.token
-            if token not in Assembly.configuration and self.configuration_required:
-                raise ConfigurationError(token)
-            if not Assembly.should_isolate(identity):
-                identity = None
-        else:
-            token = identity
+        identity = None
+        token = None
+        if owner:
+            identity = '%s/%s' % (owner.__identity__, self.attr)
+            if identity in Assembly.configuration:
+                token = identity
+
+        if not token:
+            if self.token:
+                token = self.token
+                if token not in Assembly.configuration and self.configuration_required:
+                    raise ConfigurationError(token)
+                if identity and not Assembly.should_isolate(identity):
+                    identity = None
+            else:
+                token = identity
 
         cache_token = (token, identity, self.unit)
         print 'ACQUIRING: key=%r, token=%r, identity=%r' % (cache_token, token, identity)

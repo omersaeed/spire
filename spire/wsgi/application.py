@@ -6,12 +6,12 @@ from werkzeug.routing import Map, RequestRedirect, Rule
 from werkzeug.wrappers import Request as WsgiRequest, Response
 
 from spire.assembly import Configuration, Dependency, configured_property
-from spire.local import LOCAL
+from spire.local import ContextLocals
 from spire.util import call_with_supported_params, enumerate_modules, is_class, is_module, is_package
 from spire.wsgi.templates import TemplateEnvironment
 from spire.wsgi.util import Mount
 
-LOCAL.declare('wsgi.request')
+ContextLocal = ContextLocals.declare('wsgi.request')
 
 class Request(WsgiRequest):
     """A WSGI request."""
@@ -26,11 +26,11 @@ class Request(WsgiRequest):
         self.urls = urls
 
     def bind(self):
-        LOCAL.push('wsgi.request', self)
+        ContextLocal.push(self)
 
     @classmethod
     def current_request(cls):
-        return LOCAL.get('wsgi.request')
+        return ContextLocal.get()
 
     def match(self):
         if self.endpoint:
@@ -59,7 +59,7 @@ class Request(WsgiRequest):
         return self.application.environment.render_template(template, template_context)
 
     def unbind(self):
-        LOCAL.pop('wsgi.request')
+        ContextLocal.pop()
 
     def url_for(self, endpoint, **params):
         return self.urls.build(endpoint, params)

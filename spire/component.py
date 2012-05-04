@@ -28,8 +28,6 @@ class Registry(object):
         components = configuration.get('components')
         if components:
             cls.components = cls.schema.process(components, serialized=True)
-        else:
-            raise ConfigurationError()
 
         configuration = configuration.get('configuration')
         if configuration:
@@ -38,5 +36,6 @@ class Registry(object):
     @classmethod
     def deploy(cls):
         units = cls.units
-        for component in cls.components:
-            units[component.identity] = component()
+        if cls.components:
+            for component in cls.components:
+                units[component.identity] = component()
