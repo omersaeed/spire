@@ -1,6 +1,7 @@
 from scheme import Text
 from werkzeug.exceptions import NotFound
 
+from spire.local import ContextLocals
 from spire.unit import Configuration, Unit
 
 class Mount(Unit):
@@ -10,7 +11,9 @@ class Mount(Unit):
     })
 
     def __call__(self, environ, start_response):
-        return self.application(environ, start_response)
+        response = self.application(environ, start_response)
+        ContextLocals.purge()
+        return response
 
 class Dispatcher(object):
     def __init__(self, mounts=None):
