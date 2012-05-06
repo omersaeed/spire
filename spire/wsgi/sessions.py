@@ -3,7 +3,7 @@ from scheme.supplemental import ObjectReference
 from werkzeug.contrib.sessions import FilesystemSessionStore, SessionStore, Session
 from werkzeug.utils import dump_cookie, parse_cookie
 
-from spire import Configuration, Unit, configured_property
+from spire.core import Configuration, Unit, configured_property
 from spire.wsgi import Mediator
 from spire.util import pruned
 
