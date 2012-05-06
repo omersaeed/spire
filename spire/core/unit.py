@@ -104,7 +104,8 @@ class UnitMeta(type):
         unit.__identity__ = identity
         unit.__token__ = token
 
-        print 'INSTANTIATING %s: token=%r, identity=%r' % (cls.identity, token, identity)
+        print 'INSTANTIATING %s: assembly=%r, token=%r, identity=%r' % (cls.identity,
+            assembly, token, identity)
 
         if cls.configuration:
             configuration = cls.configuration.get(unit)

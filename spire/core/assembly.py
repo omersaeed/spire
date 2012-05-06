@@ -27,6 +27,9 @@ class Assembly(object):
     def __exit__(self, *args):
         self.demote()
 
+    def __repr__(self):
+        return 'Assembly(0x%08x)' % id(self)
+
     def acquire(self, key, instantiator, arguments):
         self.guard.acquire()
         try:

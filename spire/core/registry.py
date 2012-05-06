@@ -8,6 +8,7 @@ class Configurable(object):
 class Registry(object):
     """The unit registry."""
 
+    dependencies = {}
     schemas = {}
     units = {}
 
@@ -24,7 +25,12 @@ class Registry(object):
     @classmethod
     def register_dependency(cls, dependency):
         token = dependency.token
-        if not (dependency.configurable and token):
+        if not token:
+            return
+
+        if token not in cls.dependencies:
+            cls.dependencies[token] = type(dependency)
+        if not dependency.configurable:
             return
 
         configuration = dependency.unit.configuration

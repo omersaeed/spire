@@ -35,6 +35,37 @@ class ModelController(Unit, Controller):
     def get(self, context, response, subject, data):
         response(self._construct_resource(subject))
 
+    def put(self, context, response, subject, data):
+        model = self._construct_model(data)
+        if subject:
+            subject.update_with_mapping(model)
+        else:
+            subject = self.model(**model)
+            self.schema.session.add(subject)
+
+        self.schema.session.commit()
+        response({'id': subject.id})
+
+    def query(self, context, response, subject, data):
+        data = data or {}
+        query = self.schema.session.query(self.model)
+
+
+        total = query.count()
+
+        if 'limit' in data:
+            query = query.limit(data['limit'])
+        if 'offset' in data:
+            query = query.offset(data['offset'])
+
+
+        resources = []
+        for instance in query.all():
+            print instance.fullname, instance.tenant_id
+            resources.append(self._construct_resource(instance))
+
+        response({'total': total, 'resources': resources})
+
     def update(self, context, response, subject, data):
         subject.update_with_mapping(self._construct_model(data))
         subject.session.commit()
