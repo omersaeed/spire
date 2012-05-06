@@ -1,6 +1,5 @@
 from mesh.standard import Controller
-from spire.assembly import Configurable
-from spire.unit import Unit
+from spire.core import Unit
 
 __all__ = ('ModelController',)
 

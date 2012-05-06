@@ -5,7 +5,7 @@ from werkzeug.local import Local, release_local
 from werkzeug.routing import Map, RequestRedirect, Rule
 from werkzeug.wrappers import Request as WsgiRequest, Response
 
-from spire.assembly import Configuration, Dependency, configured_property
+from spire.core import *
 from spire.local import ContextLocals
 from spire.util import call_with_supported_params, enumerate_modules, is_class, is_module, is_package
 from spire.wsgi.templates import TemplateEnvironment

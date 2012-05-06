@@ -4,9 +4,8 @@ from scheme import Boolean, Text
 from sqlalchemy import MetaData, create_engine
 from sqlalchemy.orm.session import sessionmaker
 
-from spire.assembly import Configuration, Dependency
+from spire.core import *
 from spire.local import ContextLocals
-from spire.unit import Unit
 
 __all__ = ('Schema', 'SchemaDependency', 'SchemaInterface')
 
@@ -79,5 +78,5 @@ class SchemaDependency(Dependency):
         self.schema = schema
         super(SchemaDependency, self).__init__(SchemaInterface, 'schema:%s' % schema, **params)
 
-    def contribute(self):
+    def contribute_params(self):
         return {'schema': self.schema}

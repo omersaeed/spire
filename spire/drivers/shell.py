@@ -1,25 +1,10 @@
-import sys
 import os
+import sys
 
-from scheme import Format
-
-from spire.component import Registry
-
-
-class Driver(object):
-    def __init__(self, configuration):
-        if isinstance(configuration, basestring):
-            configuration = Format.read(configuration)
-        if 'spire' in configuration:
-            configuration = configuration['spire']
-        else:
-            raise RuntimeError()
-
-        Registry.configure(configuration)
-        Registry.deploy()
+from spire.drivers.driver import Driver
 
 if __name__ == '__main__':
     if os.getenv('PYTHONSTARTUP', False):
         if os.path.exists(os.environ['PYTHONSTARTUP']):
             execfile(os.environ['PYTHONSTARTUP'])
-    Driver(sys.argv[1])
+    driver = Driver().configure(sys.argv[1]).deploy()

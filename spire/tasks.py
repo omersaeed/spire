@@ -8,17 +8,23 @@ class StartShell(Task):
     description = 'starts a spire server using the python shell'
     parameters = {
         'config': Text(description='path to spire configuration', required=True),
+        'ipython': Boolean(description='use ipython if available', default=True),
     }
 
-    IPYTHON_CODE = '''"from spire.drivers.shell import Driver;Driver('%s')"'''
+    IPYTHON_CODE = '''"from spire.drivers.shell import Driver;Driver().configure('%s').deploy()"'''
 
     def run(self, runtime):
-        try:
-            import IPython
-        except ImportError:
-            os.execvp('python', ['python', '-i', '-m', 'spire.drivers.shell', self['config']])
-        else:
+        ipython = self['ipython']
+        if ipython:
+            try:
+                import IPython
+            except ImportError:
+                ipython = False
+
+        if ipython:
             os.execvp('ipython', ['ipython', '-i', '-c', self.IPYTHON_CODE % self['config']])
+        else:
+            os.execvp('python', ['python', '-i', '-m', 'spire.drivers.shell', self['config']])
 
 class StartWsgiServer(Task):
     name = 'spire.wsgi'

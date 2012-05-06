@@ -4,10 +4,9 @@ from mesh.transport.http import HttpClient, HttpProxy, HttpServer
 from scheme import *
 from scheme.supplemental import ObjectReference
 
-from spire.assembly import Configuration, Dependency, configured_property
+from spire.core import *
 from spire.context import ContextParserMiddleware
 from spire.local import ContextLocals
-from spire.unit import Unit
 from spire.wsgi.application import Request
 from spire.wsgi.util import Mount
 

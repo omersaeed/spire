@@ -2,7 +2,7 @@ from scheme import Text
 from werkzeug.exceptions import NotFound
 
 from spire.local import ContextLocals
-from spire.unit import Configuration, Unit
+from spire.core import Configuration, Unit
 
 class Mount(Unit):
     abstract = True

@@ -9,8 +9,8 @@ class StackProxy(object):
         self.manager = manager
         self.token = token
 
-    def get(self):
-        return self.manager.get(self.token)
+    def get(self, default=None):
+        return self.manager.get(self.token, default)
 
     def push(self, value):
         return self.manager.push(self.token, value)
@@ -65,8 +65,12 @@ class ContextLocalManager(object):
         finally:
             self.guard.release()
 
-    def get(self, token):
-        return self.locals[token].top
+    def get(self, token, default=None):
+        value = self.locals[token].top
+        if value is not None:
+            return value
+        else:
+            return default
 
     def push(self, token, value):
         self.locals[token].push(value)

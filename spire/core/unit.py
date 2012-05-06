@@ -1,13 +1,13 @@
 from copy import deepcopy
-from threading import RLock
 
-from scheme import Structure
-
-from spire.assembly import *
+from spire.core.assembly import Assembly
+from spire.core.configuration import Configuration
+from spire.core.dependency import Dependency
+from spire.core.registry import Configurable, Registry
 from spire.exceptions import *
-from spire.util import get_constructor_args, identify_object, import_object, recursive_merge
+from spire.util import get_constructor_args, identify_object
 
-__all__ = ('ConfigurableUnit', 'Unit')
+__all__ = ('Component', 'ConfigurableUnit', 'Unit')
 
 class UnitMeta(type):
     def __new__(metatype, name, bases, namespace):
@@ -27,11 +27,18 @@ class UnitMeta(type):
             unit = secondary.__new__(metatype, name, bases, namespace)
             unit.__metaclass__ = metatype
         else:
-            secondary = getattr(bases[0], '__secondary_metaclass__', type)
+            for base in reversed(bases):
+                candidate = getattr(base, '__secondary_metaclass__', None)
+                if candidate:
+                    if not secondary:
+                        secondary = candidate
+                    elif candidate is not secondary:
+                        raise SpireError()
+            
+            secondary = secondary or type
             unit = secondary.__new__(metatype, name, bases, namespace)
 
         unit.identity = identify_object(unit)
-
         configuration = {}
         dependencies = {}
 
@@ -44,32 +51,36 @@ class UnitMeta(type):
             if inherited_dependencies:
                 dependencies.update(inherited_dependencies)
 
-        declared = namespace.get('configuration')
-        if isinstance(declared, Configuration):
-            declared.schema.merge(configuration)
-            declared.register(unit)
+        declared_configuration = namespace.get('configuration')
+        if isinstance(declared_configuration, Configuration):
+            declared_configuration.schema.merge(configuration)
+            declared_configuration.bind(unit)
         else:
-            if isinstance(declared, dict):
-                configuration.update(declared)
+            if isinstance(declared_configuration, dict):
+                configuration.update(declared_configuration)
             if configuration:
-                unit.configuration = Configuration(configuration).register(unit)
+                unit.configuration = Configuration(configuration).bind(unit)
 
         unit.dependencies = {}
         for attr, value in namespace.iteritems():
             if isinstance(value, Dependency):
-                Assembly.register_dependency(value)
-                unit.dependencies[attr] = value.register(unit, attr)
+                Registry.register_dependency(value)
+                unit.dependencies[attr] = value.bind(unit, attr)
 
         for name, dependency in dependencies.iteritems():
             if name not in unit.dependencies:
-                dependency = dependency.clone().register(unit, name)
+                dependency = dependency.clone().bind(unit, name)
                 unit.dependencies[name] = dependency
                 setattr(unit, name, dependency)
 
-        Assembly.register_class(unit.identity, unit)
+        Registry.register_unit(unit)
         return unit
 
     def __call__(cls, *args, **params):
+        assembly = params.pop('__assembly__', None)
+        if not assembly:
+            assembly = Assembly.current()
+
         identity = params.pop('__identity__', None)
         token = params.pop('__token__', None)
 
@@ -89,6 +100,7 @@ class UnitMeta(type):
                     raise TypeError('too many arguments')
 
         unit = cls.__new__(cls)
+        unit.__assembly__ = assembly
         unit.__identity__ = identity
         unit.__token__ = token
 
@@ -98,8 +110,7 @@ class UnitMeta(type):
             configuration = cls.configuration.get(unit)
             if params:
                 for name, value in params.items():
-                    if name not in configuration:
-                        configuration[name] = value
+                    configuration[name] = value
                     if name not in signature:
                         del params[name]
 
@@ -134,3 +145,6 @@ class Unit(object):
 
 class ConfigurableUnit(Unit, Configurable):
     """A unit which can be directly configured."""
+
+class Component(Unit, Configurable):
+    """A component."""
