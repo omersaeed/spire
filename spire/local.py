@@ -1,8 +1,11 @@
+from logging import getLogger
 from threading import Lock
 
 from werkzeug.local import LocalStack, release_local
 
 from spire.exceptions import LocalError
+
+log = getLogger(__name__)
 
 class StackProxy(object):
     def __init__(self, manager, token):
@@ -12,8 +15,8 @@ class StackProxy(object):
     def get(self, default=None):
         return self.manager.get(self.token, default)
 
-    def push(self, value):
-        return self.manager.push(self.token, value)
+    def push(self, value, finalizer=None):
+        return self.manager.push(self.token, value, finalizer)
 
     def pop(self):
         return self.manager.pop(self.token)
@@ -32,8 +35,8 @@ class PrefixedProxy(object):
     def get(self, token):
         return self.manager.get(self._apply_prefix(token))
 
-    def push(self, token, value):
-        return self.manager.push(self._apply_prefix(token), value)
+    def push(self, token, value, finalizer=None):
+        return self.manager.push(self._apply_prefix(token), value, finalizer)
 
     def pop(self, token):
         return self.manager.pop(self._apply_prefix(token))
@@ -66,27 +69,37 @@ class ContextLocalManager(object):
             self.guard.release()
 
     def get(self, token, default=None):
-        value = self.locals[token].top
-        if value is not None:
-            return value
+        pair = self.locals[token].top
+        if pair is not None:
+            return pair[0]
         else:
             return default
 
-    def push(self, token, value):
-        self.locals[token].push(value)
+    def push(self, token, value, finalizer=None):
+        log.debug('pushing value %r onto stack %r' % (value, token))
+        self.locals[token].push((value, finalizer))
         return value
 
     def pop(self, token):
-        return self.locals[token].pop()
+        value, finalizer = self.locals[token].pop()
+        log.debug('popping value %r off stack %r' % (value, token))
+        if finalizer:
+            log.debug('running finalizer for %r off stack %r' % (value, token))
+            finalizer()
+        return value
 
     def purge(self):
+        log.debug('purging context locals')
         for stack in self.locals.itervalues():
-            release_local(stack)
+            while stack.top is not None:
+                value, finalizer = stack.pop()
+                if finalizer:
+                    finalizer()
 
     def require(self, token):
-        value = self.locals[token].top
-        if value is not None:
-            return value
+        pair = self.locals[token].top
+        if pair is not None:
+            return pair[0]
         else:
             raise LocalError(token)
 

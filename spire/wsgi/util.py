@@ -11,9 +11,10 @@ class Mount(Unit):
     })
 
     def __call__(self, environ, start_response):
-        response = self.application(environ, start_response)
-        ContextLocals.purge()
-        return response
+        try:
+            return self.application(environ, start_response)
+        finally:
+            ContextLocals.purge()
 
 class Dispatcher(object):
     def __init__(self, mounts=None):

@@ -19,11 +19,6 @@ class Schema(object):
         self.metadata = MetaData()
         self.name = name
 
-    def construct_test_interface(self, url='sqlite://', **params):
-        interface = SchemaInterface(self, url, **params)
-        interface.create_tables()
-        return interface
-
     @classmethod
     def register(cls, name):
         cls.guard.acquire()
@@ -63,7 +58,7 @@ class SchemaInterface(Unit):
             return session
 
         session = self.session_maker()
-        return SessionLocals.push(self.schema.name, session)
+        return SessionLocals.push(self.schema.name, session, session.close)
 
     def create_tables(self):
         self.schema.metadata.create_all(self.engine)
