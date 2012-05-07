@@ -1,7 +1,64 @@
 from mesh.standard import Controller
+from sqlalchemy.sql import func, not_
+
 from spire.core import Unit
 
 __all__ = ('ModelController',)
+
+class FilterOperators(object):
+    def equal_op(self, query, column, value):
+        return query.filter(column == value)
+
+    def iequal_op(self, query, column, value):
+        return query.filter(func.lower(column) == value)
+
+    def not_op(self, query, column, value):
+        return query.filter(column != value)
+
+    def inot_op(self, query, column, value):
+        return query.filter(func.lower(column) != value)
+
+    def prefix_op(self, query, column, value):
+        return query.filter(column.like(value + '%'))
+
+    def iprefix_op(self, query, column, value):
+        return query.filter(column.ilike(value + '%'))
+
+    def suffix_op(self, query, column, value):
+        return query.filter(column.like('%' + value))
+
+    def isuffix_op(self, query, column, value):
+        return query.filter(column.ilike('%' + value))
+
+    def contains_op(self, query, column, value):
+        return query.filter(column.like('%' + value + '%'))
+
+    def icontains_op(self, query, column, value):
+        return query.filter(column.ilike('%' + value + '%'))
+
+    def gt_op(self, query, column, value):
+        return query.filter(column > value)
+
+    def gte_op(self, query, column, value):
+        return query.filter(column >= value)
+
+    def lt_op(self, query, column, value):
+        return query.filter(column < value)
+
+    def lte_op(self, query, column, value):
+        return query.filter(column <= value)
+
+    def null_op(self, query, column, value):
+        if value:
+            return query.filter(column == None)
+        else:
+            return query.filter(column != None)
+
+    def in_op(self, query, column, value):
+        return query.filter(column.in_(value))
+
+    def notin_op(self, query, column, value):
+        return query.filter(not_(column.in_(value)))
 
 class ModelController(Unit, Controller):
     """A mesh controller for spire.schema models."""
@@ -9,6 +66,7 @@ class ModelController(Unit, Controller):
     model = None
     schema = None
     mapping = None
+    operators = FilterOperators()
 
     def __init__(self):
         if self.mapping is None:
@@ -33,7 +91,7 @@ class ModelController(Unit, Controller):
         response({'id': subject.id})
 
     def get(self, context, response, subject, data):
-        response(self._construct_resource(subject))
+        response(self._construct_resource(subject, data))
 
     def put(self, context, response, subject, data):
         model = self._construct_model(data)
@@ -50,19 +108,24 @@ class ModelController(Unit, Controller):
         data = data or {}
         query = self.schema.session.query(self.model)
 
+        filters = data.get('query')
+        if filters:
+            query = self._construct_filters(query, filters)
+
+        query = self._annotate_query(query, data)
 
         total = query.count()
+        if data.get('total'):
+            return response({'total': total})
 
         if 'limit' in data:
             query = query.limit(data['limit'])
         if 'offset' in data:
             query = query.offset(data['offset'])
 
-
         resources = []
         for instance in query.all():
-            print instance.fullname, instance.tenant_id
-            resources.append(self._construct_resource(instance))
+            resources.append(self._construct_resource(instance, data))
 
         response({'total': total, 'resources': resources})
 
@@ -71,6 +134,29 @@ class ModelController(Unit, Controller):
         subject.session.commit()
         response({'id': subject.id})
 
+    def _annotate_resource(self, model, resource, data):
+        pass
+
+    def _annotate_query(self, query, data):
+        return query
+
+    def _construct_filters(self, query, filters):
+        model, operators = self.model, self.operators
+        for filter, value in filters.iteritems():
+            attr, operator = filter, 'equal'
+            if '__' in filter:
+                attr, operator = filter.rsplit('__', 1)
+
+            column = getattr(model, attr)
+            if not column:
+                # TODO
+                continue
+
+            constructor = getattr(operators, operator + '_op')
+            query = constructor(query, column, value)
+
+        return query
+
     def _construct_model(self, data):
         model = {}
         for name, attr in self.mapping.iteritems():
@@ -78,10 +164,12 @@ class ModelController(Unit, Controller):
                 model[attr] = data[name]
         return model
 
-    def _construct_resource(self, model, **resource):
+    def _construct_resource(self, model, data, **resource):
         for name, attr in self.mapping.iteritems():
             try:
                 resource[name] = getattr(model, attr)
             except AttributeError:
                 pass
+
+        self._annotate_resource(model, data, resource)
         return resource

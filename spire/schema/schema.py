@@ -20,6 +20,10 @@ class Schema(object):
         self.name = name
 
     @classmethod
+    def interface(cls, name):
+        return SchemaDependency(name).get()
+
+    @classmethod
     def register(cls, name):
         cls.guard.acquire()
         try:
