@@ -123,6 +123,22 @@ class TimeType(TypeDecorator, ValidatesMinMax):
         self.minimum = minimum
         self.maximum = maximum
 
+class TokenType(TypeDecorator):
+    impl = types.Text
+    pattern = re.compile(r'^\w[-.\w]*(?<=\w)(?::\w[-.\w]*(?<=\w))*$')
+
+    def __init__(self, segments=None):
+        super(TokenType, self).__init__()
+        self.segments = segments
+
+    def validate(self, instance, column, value):
+        if not self.pattern.match(value):
+            raise ValueError()
+
+        segments = self.segments
+        if segments is not None and value.count(':') + 1 != segments:
+            raise ValueError()
+
 class EmailType(TextType):
     pattern = re.compile(
         r"(?i)^([-!#$%&'*+/=?^_`{}|~0-9A-Z]+(\.[-!#$%&'*+/=?^_`{}|~0-9A-Z]+)*"
@@ -131,9 +147,6 @@ class EmailType(TextType):
 
 class IPAddressType(TextType):
     pattern = re.compile(r'^\d{1,3}[.]\d{1,3}[.]\d{1,3}[.]\d{1,3}$')
-
-class TokenType(TextType):
-    pattern = re.compile(r'^[_a-z0-9][-_.a-z0-9]*(?<=[_a-z0-9])$')
 
 class UUIDType(TextType):
     pattern = re.compile(r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$')
@@ -178,6 +191,9 @@ def Text(pattern=None, min_length=None, max_length=None, **params):
 
 def Time(minimum=None, maximum=None, **params):
     return Column(TimeType(minimum, maximum), **params)
+
+def Token(segments=None, **params):
+    return Column(TokenType(segments), **params)
 
 def UUID(**params):
     return Column(UUIDType(), **params)
