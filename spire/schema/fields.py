@@ -7,7 +7,7 @@ from sqlalchemy.types import TypeDecorator
 from spire.util import uniqid
 
 __all__ = ('Boolean', 'Date', 'DateTime', 'Decimal', 'Email', 'Enumeration', 'Float',
-    'ForeignKey', 'Identifier', 'Integer', 'Text', 'Time', 'UUID')
+    'ForeignKey', 'Identifier', 'Integer', 'Text', 'Time', 'Token', 'UUID')
 
 class MutableDict(Mutable, dict):
     @classmethod
