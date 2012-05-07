@@ -10,6 +10,7 @@ setup(
     url='http://github.com/jordanm/spire',
     packages=[
         'spire',
+        'spire.core',
         'spire.drivers',
         'spire.mesh',
         'spire.schema',
