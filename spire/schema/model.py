@@ -4,6 +4,7 @@ from sqlalchemy import Column, MetaData, Table, event
 from sqlalchemy.ext.declarative import DeclarativeMeta, declarative_base
 from sqlalchemy.orm import mapper
 from sqlalchemy.orm.mapper import Mapper
+from sqlalchemy.orm.properties import ColumnProperty
 from sqlalchemy.orm.session import object_session
 
 from spire.schema.schema import Schema, SessionLocals
@@ -30,7 +31,7 @@ class AttributeValidator(object):
     @staticmethod
     def _attach_validators(mapper, cls):
         for column_property in mapper.iterate_properties:
-            if len(column_property.columns) == 1:
+            if isinstance(column_property, ColumnProperty) and len(column_property.columns) == 1:
                 column = column_property.columns[0]
                 if hasattr(column.type, 'validate'):
                     event.listen(column_property.class_attribute, 'set',
