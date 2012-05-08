@@ -39,7 +39,10 @@ class AttributeValidator(object):
 
 class ModelMeta(DeclarativeMeta):
     def __new__(metatype, name, bases, namespace):
-        schema = namespace['schema'] = Schema.register(namespace.get('schema'))
+        schema = namespace.get('schema')
+        if not isinstance(schema, Schema):
+            schema = namespace['schema'] = Schema(schema)
+
         namespace['metadata'] = schema.metadata
 
         abstract = False

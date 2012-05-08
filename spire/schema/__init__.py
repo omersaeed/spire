@@ -1,3 +1,4 @@
+from sqlalchemy import Table
 from sqlalchemy.orm import backref, relationship, validates
 from sqlalchemy.orm.exc import MultipleResultsFound, NoResultFound
 from sqlalchemy.schema import PrimaryKeyConstraint, UniqueConstraint

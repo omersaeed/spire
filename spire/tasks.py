@@ -3,6 +3,8 @@ import os
 from bake import *
 from scheme import *
 
+from spire.schema.tasks import *
+
 class StartShell(Task):
     name = 'spire.shell'
     description = 'starts a spire server using the python shell'

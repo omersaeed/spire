@@ -3,6 +3,8 @@ from copy import deepcopy
 from scheme import Structure
 
 from spire.core.assembly import Assembly
+from spire.core.registry import Registry
+from spire.exceptions import *
 
 class Dependency(object):
     """A spire dependency."""
@@ -98,6 +100,7 @@ class Dependency(object):
             if self.token:
                 token = self.token
                 if token not in assembly.configuration and self.configuration_required:
+                    print assembly.configuration
                     raise ConfigurationError(token)
                 if identity and not assembly.should_isolate(identity):
                     identity = None
@@ -113,3 +116,8 @@ class Dependency(object):
         params.update(self.params)
         return self.unit(__assembly__=assembly, __identity__=identity,
             __token__=token, **params)
+
+    @classmethod
+    def register(cls, *args, **params):
+        Registry.register_dependency(cls(*args, **params))
+        

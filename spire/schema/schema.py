@@ -12,28 +12,30 @@ __all__ = ('Schema', 'SchemaDependency', 'SchemaInterface')
 SessionLocals = ContextLocals.create_prefixed_proxy('schema.session')
 
 class Schema(object):
+    """A spire schema."""
+
     guard = Lock()
     schemas = {}
 
-    def __init__(self, name):
-        self.metadata = MetaData()
-        self.name = name
+    def __new__(cls, name):
+        cls.guard.acquire()
+        try:
+            try:
+                return cls.schemas[name]
+            except KeyError:
+                instance = cls.schemas[name] = super(Schema, cls).__new__(cls)
+                instance.name = name
+                instance.metadata = MetaData()
+                SchemaDependency.register(name)
+                SessionLocals.declare(name)
+                return instance
+        finally:
+            cls.guard.release()
 
     @classmethod
     def interface(cls, name):
         return SchemaDependency(name).get()
 
-    @classmethod
-    def register(cls, name):
-        cls.guard.acquire()
-        try:
-            if name not in cls.schemas:
-                cls.schemas[name] = cls(name)
-                SessionLocals.declare(name)
-            return cls.schemas[name]
-        finally:
-            cls.guard.release()
-    
 class SchemaInterface(Unit):
     configuration = Configuration({
         'echo': Boolean(default=False),
