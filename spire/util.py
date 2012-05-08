@@ -1,7 +1,7 @@
 import os
 import re
 import sys
-from inspect import getargspec
+from inspect import getargspec, stack
 from types import ModuleType
 from uuid import uuid4
 
@@ -130,6 +130,14 @@ def recursive_merge(original, addition):
         else:
             original[key] = value
     return original
+
+def trace_stack(indent=''):
+    lines = []
+    for frame, filename, lineno, context, source, pos in reversed(stack()[1:]):
+        lines.append('%sfile "%s", line %d, in %s' % (indent, filename, lineno, context))
+        if source:
+            lines.append('%s    %s' % (indent, source[0].strip()))
+    return '\n'.join(lines)
 
 def uniqid():
     return str(uuid4())

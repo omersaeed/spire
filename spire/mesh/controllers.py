@@ -5,6 +5,8 @@ from spire.core import Unit
 
 __all__ = ('ModelController',)
 
+EMPTY = []
+
 class FilterOperators(object):
     def equal_op(self, query, column, value):
         return query.filter(column == value)
@@ -68,10 +70,18 @@ class ModelController(Unit, Controller):
     mapping = None
     operators = FilterOperators()
 
-    def __init__(self):
-        if self.mapping is None:
-            fields = self.resource.filter_schema().keys()
-            self.mapping = dict(zip(fields, fields))
+    @classmethod
+    def __construct__(cls):
+        Controller.__construct__()
+        if cls.resource:
+            mapping = cls.mapping
+            if mapping is None:
+                mapping = cls.resource.filter_schema().keys()
+            if isinstance(mapping, basestring):
+                mapping = mapping.split(' ')
+            if isinstance(mapping, (list, tuple)):
+                mapping = dict(zip(mapping, mapping))
+            cls.mapping = mapping
 
     def acquire(self, subject):
         try:
@@ -167,13 +177,21 @@ class ModelController(Unit, Controller):
         return model
 
     def _construct_resource(self, model, data, **resource):
+        include = data.get('include', EMPTY)
+        exclude = data.get('exclude', EMPTY)
+
+        schema = self.resource.schema
         for name, attr in self.mapping.iteritems():
+            field = schema[name]
+            if not field.is_identifier:
+                if name in exclude or (field.deferred and name not in include):
+                    continue
             try:
                 resource[name] = getattr(model, attr)
             except AttributeError:
                 pass
 
-        self._annotate_resource(model, data, resource)
+        self._annotate_resource(model, resource, data)
         return resource
 
     def _construct_sorting(self, query, sorting):
