@@ -1,5 +1,5 @@
 from mesh.standard import Controller
-from sqlalchemy.sql import func, not_
+from sqlalchemy.sql import asc, desc, func, not_
 
 from spire.core import Unit
 
@@ -118,6 +118,8 @@ class ModelController(Unit, Controller):
         if data.get('total'):
             return response({'total': total})
 
+        if 'sort' in data:
+            query = self._construct_sorting(query, data['sort'])
         if 'limit' in data:
             query = query.limit(data['limit'])
         if 'offset' in data:
@@ -147,7 +149,7 @@ class ModelController(Unit, Controller):
             if '__' in filter:
                 attr, operator = filter.rsplit('__', 1)
 
-            column = getattr(model, attr)
+            column = getattr(model, self.mapping[attr])
             if not column:
                 # TODO
                 continue
@@ -173,3 +175,21 @@ class ModelController(Unit, Controller):
 
         self._annotate_resource(model, data, resource)
         return resource
+
+    def _construct_sorting(self, query, sorting):
+        columns = []
+        for attr in sorting:
+            direction = asc
+            if attr[-1] == '+':
+                attr = attr[:-1]
+            elif attr[-1] == '-':
+                attr = attr[:-1]
+                direction = desc
+
+            column = getattr(self.model, self.mapping[attr])
+            if not column:
+                continue
+
+            columns.append(direction(column))
+
+        return query.order_by(*columns)
