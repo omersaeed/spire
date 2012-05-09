@@ -1,23 +1,36 @@
 from unittest2 import TestCase
 
+import scheme
+from mesh.standard import Resource
 from mesh.transport.base import ServerResponse
 
 from spire.core import *
 from spire.mesh.controllers import ModelController
-from spire.schema import *
+from spire import schema as _schema
 from spire.util import uniqid
 
-class Example(Model):
+class Example(_schema.Model):
     schema = 'example'
 
-    id = UUID(nullable=False, primary_key=True, default=uniqid)
-    name = Token(nullable=False)
-    value = Integer()
+    id = _schema.UUID(nullable=False, primary_key=True, default=uniqid)
+    name = _schema.Token(nullable=False)
+    value = _schema.Integer()
 
+class ExampleResource(Resource):
+    name = 'example'
+    version = 1
+
+    class schema:
+        id = scheme.UUID(nonempty=True)
+        name = scheme.Token(nonempty=True)
+        value = scheme.Integer()
 
 class Controller(ModelController):
+    resource = ExampleResource
+    version = (1, 0)
+
     model = Example
-    schema = SchemaDependency('example')
+    schema = _schema.SchemaDependency('example')
     mapping = {'id': 'id', 'name': 'name', 'value': 'value'}
 
 class ModelControllerTestCase(TestCase):
@@ -41,7 +54,7 @@ class ModelControllerTestCase(TestCase):
             'schema:example': {'url': 'sqlite:////tmp/ex.db'}
         })
 
-        self.interface = Schema.interface('example')
+        self.interface = _schema.Schema.interface('example')
         self.interface.create_tables()
         self._create_examples()
 

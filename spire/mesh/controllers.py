@@ -146,6 +146,9 @@ class ModelController(Unit, Controller):
         subject.session.commit()
         response({'id': subject.id})
 
+    def _annotate_model(self, model, data):
+        pass
+
     def _annotate_resource(self, model, resource, data):
         pass
 
@@ -174,11 +177,15 @@ class ModelController(Unit, Controller):
         for name, attr in self.mapping.iteritems():
             if name in data:
                 model[attr] = data[name]
+
+        self._annotate_model(model, data)
         return model
 
     def _construct_resource(self, model, data, **resource):
-        include = data.get('include', EMPTY)
-        exclude = data.get('exclude', EMPTY)
+        include = exclude = EMPTY
+        if data:
+            include = data.get('include', EMPTY)
+            exclude = data.get('exclude', EMPTY)
 
         schema = self.resource.schema
         for name, attr in self.mapping.iteritems():
