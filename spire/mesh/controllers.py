@@ -93,12 +93,12 @@ class ModelController(Unit, Controller):
         instance = self.model(**self._construct_model(data))
         self.schema.session.add(instance)
         self.schema.session.commit()
-        response({'id': instance.id})
+        response({'id': self._get_model_value(instance, 'id')})
 
     def delete(self, context, response, subject, data):
         subject.session.delete(subject)
         subject.session.commit()
-        response({'id': subject.id})
+        response({'id': self._get_model_value(subject, 'id')})
 
     def get(self, context, response, subject, data):
         response(self._construct_resource(subject, data))
@@ -112,7 +112,7 @@ class ModelController(Unit, Controller):
             self.schema.session.add(subject)
 
         self.schema.session.commit()
-        response({'id': subject.id})
+        response({'id': self._get_model_value(subject, 'id')})
 
     def query(self, context, response, subject, data):
         data = data or {}
@@ -144,7 +144,7 @@ class ModelController(Unit, Controller):
     def update(self, context, response, subject, data):
         subject.update_with_mapping(self._construct_model(data))
         subject.session.commit()
-        response({'id': subject.id})
+        response({'id': self._get_model_value(subject, 'id')})
 
     def _annotate_model(self, model, data):
         pass
@@ -218,3 +218,6 @@ class ModelController(Unit, Controller):
             columns.append(direction(column))
 
         return query.order_by(*columns)
+
+    def _get_model_value(self, model, name):
+        return getattr(model, self.mapping[name])
