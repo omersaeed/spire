@@ -1,7 +1,7 @@
 from unittest2 import TestCase
 
 import scheme
-from mesh.standard import Resource
+from mesh.standard import *
 from mesh.transport.base import ServerResponse
 
 from spire.core import *
@@ -56,7 +56,11 @@ class ModelControllerTestCase(TestCase):
 
         self.interface = _schema.Schema.interface('example')
         self.interface.create_tables()
-        self._create_examples()
+
+        try:
+            self._create_examples()
+        except AttributeError:
+            pass
 
     def tearDown(self):
         self.interface.drop_tables()
@@ -70,6 +74,8 @@ class ModelControllerTestCase(TestCase):
         content = getattr(controller, request)(None, response, subject, data)
         if content and content is not response:
             response(content)
+        if not response.status:
+            response.status = OK
 
         return response
 
@@ -83,6 +89,18 @@ class ModelControllerTestCase(TestCase):
         if query:
             filters['query'] = query
         return self._execute_operation('query', data=filters)
+
+class TestCRUD(ModelControllerTestCase):
+    def _create_example(self, name='alpha', value=1):
+        response = self._execute_operation('create', data={'name': name, 'value': value})
+        self.assertEqual(response.status, OK)
+        self.assertIsInstance(response.content, dict)
+        self.assertIn('id', response.content)
+        return response.content['id']
+
+    def test_create(self):
+        id = self._create_example()
+        self.assertTrue(id)
 
 class TestQuerySorting(ModelControllerTestCase):
     EXAMPLES = [('alpha', 1), ('alpha', 2), ('beta', 1), ('gamma', 3)]

@@ -104,15 +104,10 @@ class ModelController(Unit, Controller):
         response(self._construct_resource(subject, data))
 
     def put(self, context, response, subject, data):
-        model = self._construct_model(data)
         if subject:
-            subject.update_with_mapping(model)
+            self.update(context, response, subject, data)
         else:
-            subject = self.model(**model)
-            self.schema.session.add(subject)
-
-        self.schema.session.commit()
-        response({'id': self._get_model_value(subject, 'id')})
+            self.create(context, response, subject, data)
 
     def query(self, context, response, subject, data):
         data = data or {}
