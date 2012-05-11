@@ -117,6 +117,22 @@ class ModelBase(object):
     def session(self):
         return object_session(self)
 
+    @classmethod
+    def polymorphic_create(cls, data):
+        column = cls.__mapper__.polymorphic_on
+        if column is None:
+            raise TypeError(cls)
+
+        identity = data.get(column.name)
+        if not identity:
+            raise ValueError(data)
+
+        mapper = cls.__mapper__.polymorphic_map.get(identity)
+        if mapper:
+            return mapper.class_(**data)
+        else:
+            raise ValueError(identity)
+
     def update_with_mapping(self, mapping=None, **params):
         cls = type(self)
         for attr, value in params.iteritems():

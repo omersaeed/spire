@@ -91,6 +91,7 @@ class ModelController(Unit, Controller):
 
     def create(self, context, response, subject, data):
         instance = self.model(**self._construct_model(data))
+        self._annotate_model(instance, data)
         self.schema.session.add(instance)
         self.schema.session.commit()
         response({'id': self._get_model_value(instance, 'id')})
@@ -138,6 +139,7 @@ class ModelController(Unit, Controller):
 
     def update(self, context, response, subject, data):
         subject.update_with_mapping(self._construct_model(data))
+        self._annotate_model(subject, data)
         subject.session.commit()
         response({'id': self._get_model_value(subject, 'id')})
 
@@ -172,8 +174,6 @@ class ModelController(Unit, Controller):
         for name, attr in self.mapping.iteritems():
             if name in data:
                 model[attr] = data[name]
-
-        self._annotate_model(model, data)
         return model
 
     def _construct_resource(self, model, data, **resource):
