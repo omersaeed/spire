@@ -10,7 +10,8 @@ from spire import schema as _schema
 from spire.util import uniqid
 
 class Example(_schema.Model):
-    schema = 'example'
+    class meta:
+        schema = 'example'
 
     id = _schema.UUID(nullable=False, primary_key=True, default=uniqid)
     name = _schema.Token(nullable=False)

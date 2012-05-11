@@ -39,46 +39,45 @@ class AttributeValidator(object):
 
 class ModelMeta(DeclarativeMeta):
     def __new__(metatype, name, bases, namespace):
-        schema = namespace.get('schema')
-        if not isinstance(schema, Schema):
-            schema = namespace['schema'] = Schema(schema)
+        meta = namespace.pop('meta', None)
+        if not meta:
+            return DeclarativeMeta.__new__(metatype, name, bases, namespace)
+        elif not isinstance(meta, dict):
+            meta = meta.__dict__
 
+        schema = meta.pop('schema')
+        if not isinstance(schema, Schema):
+            schema = Schema(schema)
+
+        namespace['schema'] = schema
         namespace['metadata'] = schema.metadata
 
-        abstract = False
-        tablename = None
+        abstract = meta.pop('abstract', False)
+        tablename = meta.pop('tablename', None)
 
-        meta = namespace.pop('meta', None)
+        mapper_params = {}
+        for param in MAPPER_PARAMS:
+            if param in meta:
+                mapper_params[param] = meta.pop(param)
+
+        if mapper_params:
+            namespace['__mapper_args__'] = mapper_params
+
+        table_args = []
+        for param in ('constraints', 'indexes'):
+            if param in meta:
+                table_args.extend(meta.pop(param))
+
         if meta:
-            if not isinstance(meta, dict):
-                meta = meta.__dict__
-
-            if 'abstract' in meta:
-                abstract = meta.pop('abstract')
-            if 'tablename' in meta:
-                tablename = meta.pop('tablename')
-
-            mapper_params = {}
-            for param in MAPPER_PARAMS:
-                if param in meta:
-                    mapper_params[param] = meta.pop(param)
-            
-            if mapper_params:
-                namespace['__mapper_args__'] = mapper_params
-
-            table_args = []
-            for param in ('constraints', 'indexes'):
-                if param in meta:
-                    table_args.extend(meta.pop(param))
-
+            meta = dict((key, value) for key, value in meta.iteritems() if key[0] != '_')
             if meta:
-                meta = dict((key, value) for key, value in meta.iteritems() if key[0] != '_')
                 table_args.append(meta)
-            if table_args:
-                namespace['__table_args__'] = tuple(table_args)
+
+        if table_args:
+            namespace['__table_args__'] = tuple(table_args)
 
         if not tablename:
-            tablename = pluralize(name.lower())
+            tablename = name.lower()
         if '__tablename__' not in namespace and not abstract:
             namespace['__tablename__'] = tablename
 

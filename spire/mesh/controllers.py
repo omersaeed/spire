@@ -2,6 +2,7 @@ from mesh.standard import Controller
 from sqlalchemy.sql import asc, desc, func, not_
 
 from spire.core import Unit
+from spire.schema import NoResultFound
 
 __all__ = ('ModelController',)
 
@@ -86,7 +87,7 @@ class ModelController(Unit, Controller):
     def acquire(self, subject):
         try:
             return self.schema.session.query(self.model).get(subject)
-        except ValueError:
+        except NoResultFound:
             return None
 
     def create(self, context, response, subject, data):
