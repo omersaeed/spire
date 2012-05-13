@@ -104,17 +104,34 @@ class ModelBase(object):
                 setattr(self, attr, value)
 
     def __repr__(self):
-        return "%s('%s')" % (type(self).__name__, unicode(self))
+        try:
+            return "%s('%s')" % (type(self).__name__, unicode(self))
+        except TypeError:
+            return super(ModelBase, self).__repr__()
 
     def __unicode__(self):
         try:
-            return self.id
+            return str(self.id)
         except AttributeError:
             return id(self)
 
     @property
     def session(self):
         return object_session(self)
+
+    def extract_dict(self, attrs=None, exclude=None, **value):
+        if not attrs:
+            attrs = [column.name for column in self.__mapper__.columns]
+        if isinstance(attrs, (tuple, list)):
+            attrs = dict(zip(attrs, attrs))
+
+        if exclude:
+            for attr in exclude:
+                attrs.pop(attr, None)
+
+        for attr, name in attrs.iteritems():
+            value[name] = getattr(self, attr)
+        return value
 
     @classmethod
     def polymorphic_create(cls, data):
@@ -136,6 +153,7 @@ class ModelBase(object):
         cls = type(self)
         for attr, value in params.iteritems():
             setattr(self, attr, value)
+
         if mapping:
             for attr, value in mapping.iteritems():
                 if attr not in params:

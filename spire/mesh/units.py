@@ -35,6 +35,9 @@ class MeshClient(Unit):
         self.instance = client(url, specification, self._construct_context,
             context_header_prefix=CONTEXT_HEADER_PREFIX).register()
 
+    def execute(self, *args, **params):
+        return self.instance.execute(*args, **params)
+
     def _construct_context(self):
         context = ContextLocal.get()
         if context:
@@ -79,8 +82,15 @@ class MeshDependency(Dependency):
 class MeshServer(Mount):
     configuration = Configuration({
         'bundles': Sequence(ObjectReference(notnull=True), required=True, unique=True),
+        'mediators': Sequence(Text(nonempty=True), nonnull=True, unique=True),
         'server': ObjectReference(nonnull=True, default=HttpServer),
     })
 
-    def __init__(self, bundles, server):
-        self.application = ContextManagerMiddleware(server(bundles, context_key='spire.context'))
+    def __init__(self, bundles, server, mediators=None):
+        self.mediators = []
+        if mediators:
+            for mediator in mediators:
+                self.mediators.append(getattr(self, mediator))
+
+        application = server(bundles, mediators=self.mediators, context_key='spire.context')
+        self.application = ContextManagerMiddleware(application)
