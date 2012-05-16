@@ -1,4 +1,8 @@
 import sys
+from os import path
+
+import yaml
+from werkzeug.wsgi import SharedDataMiddleware
 
 from spire.drivers.driver import Driver
 from spire.wsgi.server import WsgiServer
@@ -13,8 +17,24 @@ class Driver(Driver):
         for unit in self.assembly.collate(Mount):
             self.dispatcher.mount(unit.configuration['path'], unit)
 
+        config = self.get_config()
+        if 'static-map' in config:
+            m = config['static-map'].split('=')
+            self.dispatcher = SharedDataMiddleware(self.dispatcher, {
+                m[0]: path.abspath(m[1])
+                }, cache=False);
+
         self.server = WsgiServer(address, self.dispatcher)
         self.server.serve()
 
+    def get_config(self):
+        dirname = path.basename(path.abspath('.'))
+        for ext in '.yaml', '.yml':
+            if path.exists(dirname + ext):
+                config = yaml.load(open(dirname + ext))
+        return config['wsgi'] if config and 'wsgi' in config else {}
+
+
 if __name__ == '__main__':
     Driver(*sys.argv[1:])
+
