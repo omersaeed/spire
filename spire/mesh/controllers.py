@@ -92,7 +92,7 @@ class ModelController(Unit, Controller):
 
     def create(self, context, response, subject, data):
         instance = self.model(**self._construct_model(data))
-        self._annotate_model(instance, data)
+        self._annotate_model(context, instance, data)
         self.schema.session.add(instance)
         self.schema.session.commit()
         response({'id': self._get_model_value(instance, 'id')})
