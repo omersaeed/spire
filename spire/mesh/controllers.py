@@ -103,7 +103,7 @@ class ModelController(Unit, Controller):
         response({'id': self._get_model_value(subject, 'id')})
 
     def get(self, context, response, subject, data):
-        response(self._construct_resource(subject, data))
+        response(self._construct_resource(context, subject, data))
 
     def put(self, context, response, subject, data):
         if subject:
@@ -119,7 +119,7 @@ class ModelController(Unit, Controller):
         if filters:
             query = self._construct_filters(query, filters)
 
-        query = self._annotate_query(query, data)
+        query = self._annotate_query(context, query, data)
 
         total = query.count()
         if data.get('total'):
@@ -134,23 +134,23 @@ class ModelController(Unit, Controller):
 
         resources = []
         for instance in query.all():
-            resources.append(self._construct_resource(instance, data))
+            resources.append(self._construct_resource(context, instance, data))
 
         response({'total': total, 'resources': resources})
 
     def update(self, context, response, subject, data):
         subject.update_with_mapping(self._construct_model(data))
-        self._annotate_model(subject, data)
+        self._annotate_model(context, subject, data)
         subject.session.commit()
         response({'id': self._get_model_value(subject, 'id')})
 
-    def _annotate_model(self, model, data):
+    def _annotate_model(self, context, model, data):
         pass
 
-    def _annotate_resource(self, model, resource, data):
+    def _annotate_resource(self, context, model, resource, data):
         pass
 
-    def _annotate_query(self, query, data):
+    def _annotate_query(self, context, query, data):
         return query
 
     def _construct_filters(self, query, filters):
@@ -177,7 +177,7 @@ class ModelController(Unit, Controller):
                 model[attr] = data[name]
         return model
 
-    def _construct_resource(self, model, data, **resource):
+    def _construct_resource(self, context, model, data, **resource):
         include = exclude = EMPTY
         if data:
             include = data.get('include', EMPTY)
@@ -194,7 +194,7 @@ class ModelController(Unit, Controller):
             except AttributeError:
                 pass
 
-        self._annotate_resource(model, resource, data)
+        self._annotate_resource(context, model, resource, data)
         return resource
 
     def _construct_sorting(self, query, sorting):
