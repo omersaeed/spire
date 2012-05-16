@@ -19,7 +19,7 @@ class Request(WsgiRequest):
     def __init__(self, application, environ, urls, context=None):
         super(Request, self).__init__(environ)
         self.application = application
-        self.context = context or {'test': 'test'}
+        self.context = context
         self.endpoint = None
         self.params = None
         self.template_context = {}
@@ -45,9 +45,7 @@ class Request(WsgiRequest):
 
     def render(self, template, context=None, response=None, mimetype='text/html', **params):
         response = response or Response(mimetype=mimetype)
-        full_context = dict(context or {})
-        full_context.update(self.context)
-        response.data = self.render_template(template, full_context, **params)
+        response.data = self.render_template(template, context, **params)
         return response
 
     def render_template(self, template, context=None, **params):
@@ -104,7 +102,6 @@ class Application(Mount):
         except HTTPException, error:
             response = error
         except Exception, error:
-            raise
             response = InternalServerError()
 
         return response(environ, start_response)
@@ -135,7 +132,6 @@ class Application(Mount):
                     if not view:
                         response = NotFound()
 
-            
             if not response:
                 try:
                     response = call_with_supported_params(view, request, **request.params)
