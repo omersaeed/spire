@@ -17,7 +17,7 @@ class Driver(Driver):
         for unit in self.assembly.collate(Mount):
             self.dispatcher.mount(unit.configuration['path'], unit)
 
-        config = self.get_config()
+        config = self.get_config(configuration)
         if 'static-map' in config:
             m = config['static-map'].split('=')
             self.dispatcher = SharedDataMiddleware(self.dispatcher, {
@@ -27,11 +27,8 @@ class Driver(Driver):
         self.server = WsgiServer(address, self.dispatcher)
         self.server.serve()
 
-    def get_config(self):
-        dirname = path.basename(path.abspath('.'))
-        for ext in '.yaml', '.yml':
-            if path.exists(dirname + ext):
-                config = yaml.load(open(dirname + ext))
+    def get_config(self, filename):
+        config = yaml.load(open(filename))
         return config['wsgi'] if config and 'wsgi' in config else {}
 
 
