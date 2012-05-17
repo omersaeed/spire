@@ -67,7 +67,7 @@ class Application(Mount):
 
     configuration = Configuration({
         'mediators': Sequence(Text(nonempty=True), unique=True),
-        'middleware': Sequence(ObjectReference(nonnull=True)),
+        'middleware': Sequence(Text(nonempty=True), unique=True),
         'templates': Sequence(Tuple((Text(nonempty=True), Text(nonempty=True)))),
         'urls': ObjectReference(nonnull=True, required=True),
         'views': Sequence(ObjectReference(nonnull=True), unique=True),
@@ -93,23 +93,31 @@ class Application(Mount):
 
         self.application = self.dispatch
         if middleware:
-            for implementation in reversed(middleware):
-                self.application = implementation(self.application)
+            for attr in reversed(middleware):
+                self.application = getattr(self, attr).wrap(self.application)
 
     def __call__(self, environ, start_response):
         try:
-            response = self.application(environ, start_response)
-        except HTTPException, error:
-            response = error
+            return self.application(environ, start_response)
         except Exception, error:
-            response = InternalServerError()
-
-        return response(environ, start_response)
+            return InternalServerError()(environ, start_response)
 
     def dispatch(self, environ, start_response):
+        try:
+            response = self._dispatch_request(environ, start_response)
+        except HTTPException, error:
+            response = error
+        return response(environ, start_response)
+
+    def _dispatch_request(self, environ, start_response):
         urls = self.urls.bind_to_environ(environ)
         request = Request(self, environ, urls)
         response = None
+
+        attrs = environ.get('spire.request-attrs', None)
+        if attrs:
+            for attr, value in attrs:
+                setattr(request, attr, value)
 
         request.bind()
         try:
@@ -191,6 +199,16 @@ class Mediator(object):
 
     def mediate_response(self, request, response):
         return response
+
+class Middleware(object):
+    """A WSGI middleware."""
+
+    def __call__(self, environ, start_response):
+        return self.application(environ, start_response)
+
+    def wrap(self, application):
+        self.application = application
+        return self
 
 def view(endpoint):
     if hasattr(endpoint, '__call__'):

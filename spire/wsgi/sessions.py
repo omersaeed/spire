@@ -2,13 +2,14 @@ from scheme import Boolean, Integer, Structure, Text
 from scheme.supplemental import ObjectReference
 from werkzeug.contrib.sessions import FilesystemSessionStore, SessionStore, Session
 from werkzeug.utils import dump_cookie, parse_cookie
+from werkzeug.wsgi import ClosingIterator
 
 from spire.core import Configuration, Unit, configured_property
-from spire.wsgi import Mediator
 from spire.util import pruned
+from spire.wsgi.application import Middleware
 
-class SessionMediator(Unit, Mediator):
-    """A session mediator."""
+class SessionMiddleware(Unit, Middleware):
+    """A session middleware."""
 
     configuration = Configuration({
         'enabled': Boolean(default=True, required=True),
@@ -31,34 +32,40 @@ class SessionMediator(Unit, Mediator):
     enabled = configured_property('enabled')
 
     def __init__(self, store):
-        parameters = pruned(store, 'implementation')
-        self.store = store['implementation'](**parameters)
+        self.store = store['implementation'](**pruned(store, 'implementation'))
 
-    def get_session(self, environ):
+    def __call__(self, environ, start_response):
+        session = None
+        if self.enabled:
+            session = self._get_session(environ)
+
+        if 'spire.request-attrs' in environ:
+            environ['spire.request-attrs'].append(('session', session))
+        else:
+            environ['spire.request-attrs'] = [('session', session)]
+
+        if session is None:
+            return self.application(environ, start_response)
+
+        def injecting_start_response(status, headers, exc_info=None):
+            if session.should_save:
+                self.store.save(session)
+                headers.append(('Set-Cookie', self._construct_cookie(session)))
+            return start_response(status, headers, exc_info)
+
+        return ClosingIterator(self.application(environ, injecting_start_response),
+            lambda: self.store.save_if_modified(session))
+
+    def _construct_cookie(self, session):
+        params = self.configuration['cookie']
+        return dump_cookie(params['name'], session.sid, params.get('max_age'),
+            params.get('expires'), params.get('path', '/'), params.get('domain'),
+            params.get('secure'), params.get('httponly', False))
+
+    def _get_session(self, environ):
         cookie = parse_cookie(environ.get('HTTP_COOKIE', ''))
-        id = cookie.get(self.configuration['cookie']['name'])
+        id = cookie.get(self.configuration['cookie']['name'], None)
         if id is not None:
             return self.store.get(id)
         else:
             return self.store.new()
-
-    def mediate_request(self, request):
-        request.session = None
-        if self.enabled:
-            request.session = self.get_session(request.environ)
-
-    def mediate_response(self, request, response):
-        session = request.session
-        if session and session.should_save:
-            self.save_session(session, response)
-
-    def save_session(self, session, response):
-        self.store.save(session)
-        params = self.configuration['cookie']
-        response.set_cookie(
-            key=params['name'],
-            value=session.sid,
-            max_age=params.get('max_age'),
-            expires=params.get('expires'),
-            domain=params.get('domain'),
-            path=params.get('path'))
