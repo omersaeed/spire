@@ -16,14 +16,17 @@ ContextLocal = ContextLocals.declare('wsgi.request')
 class Request(WsgiRequest):
     """A WSGI request."""
 
-    def __init__(self, application, environ, urls, context=None):
+    def __init__(self, application, environ, urls):
         super(Request, self).__init__(environ)
         self.application = application
-        self.context = context
         self.endpoint = None
         self.params = None
         self.template_context = {}
         self.urls = urls
+
+        for name, value in environ.iteritems():
+            if name[:8] == 'request.':
+                setattr(self, name[8:], value)
 
     def bind(self):
         ContextLocal.push(self)
@@ -67,13 +70,13 @@ class Application(Mount):
 
     configuration = Configuration({
         'mediators': Sequence(Text(nonempty=True), unique=True),
-        'middleware': Sequence(Text(nonempty=True), unique=True),
         'templates': Sequence(Tuple((Text(nonempty=True), Text(nonempty=True)))),
         'urls': ObjectReference(nonnull=True, required=True),
         'views': Sequence(ObjectReference(nonnull=True), unique=True),
     })
 
-    def __init__(self, urls, views=None, templates=None, mediators=None, middleware=None):
+    def __init__(self, urls, views=None, templates=None, mediators=None):
+        super(Application, self).__init__()
         if isinstance(urls, (list, tuple)):
             urls = Map(list(urls))
         if not isinstance(urls, Map):
@@ -91,33 +94,18 @@ class Application(Mount):
             for mediator in mediators:
                 self.mediators.append(getattr(self, mediator))
 
-        self.application = self.dispatch
-        if middleware:
-            for attr in reversed(middleware):
-                self.application = getattr(self, attr).wrap(self.application)
-
-    def __call__(self, environ, start_response):
-        try:
-            return self.application(environ, start_response)
-        except Exception, error:
-            return InternalServerError()(environ, start_response)
-
     def dispatch(self, environ, start_response):
         try:
-            response = self._dispatch_request(environ, start_response)
+            return self._dispatch_request(environ)(environ, start_response)
         except HTTPException, error:
-            response = error
-        return response(environ, start_response)
+            return error(environ, start_response)
 
-    def _dispatch_request(self, environ, start_response):
+    def _dispatch_request(self, environ):
         urls = self.urls.bind_to_environ(environ)
         request = Request(self, environ, urls)
         response = None
 
-        attrs = environ.get('spire.request-attrs', None)
-        if attrs:
-            for attr, value in attrs:
-                setattr(request, attr, value)
+        print 'HERE'
 
         request.bind()
         try:
@@ -199,16 +187,6 @@ class Mediator(object):
 
     def mediate_response(self, request, response):
         return response
-
-class Middleware(object):
-    """A WSGI middleware."""
-
-    def __call__(self, environ, start_response):
-        return self.application(environ, start_response)
-
-    def wrap(self, application):
-        self.application = application
-        return self
 
 def view(endpoint):
     if hasattr(endpoint, '__call__'):

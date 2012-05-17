@@ -6,7 +6,7 @@ from werkzeug.wsgi import ClosingIterator
 
 from spire.core import Configuration, Unit, configured_property
 from spire.util import pruned
-from spire.wsgi.application import Middleware
+from spire.wsgi.util import Middleware
 
 class SessionMiddleware(Unit, Middleware):
     """A session middleware."""
@@ -39,11 +39,7 @@ class SessionMiddleware(Unit, Middleware):
         if self.enabled:
             session = self._get_session(environ)
 
-        if 'spire.request-attrs' in environ:
-            environ['spire.request-attrs'].append(('session', session))
-        else:
-            environ['spire.request-attrs'] = [('session', session)]
-
+        environ['request.session'] = session
         if session is None:
             return self.application(environ, start_response)
 

@@ -1,20 +1,47 @@
-from scheme import Text
-from werkzeug.exceptions import NotFound
+from scheme import Sequence, Text
+from werkzeug.exceptions import InternalServerError, NotFound
 
 from spire.local import ContextLocals
 from spire.core import Configuration, Unit
 
 class Mount(Unit):
-    abstract = True
     configuration = Configuration({
-        'path': Text(description='url path', nonempty=True)
+        'middleware': Sequence(Text(nonempty=True), unique=True),
+        'path': Text(description='url path', nonempty=True),
     })
+
+    def __init__(self):
+        try:
+            self.application
+        except AttributeError:
+            self.application = self.dispatch
+
+        middleware = self.configuration.get('middleware')
+        if middleware:
+            for attr in reversed(middleware):
+                self.application = getattr(self, attr).wrap(self.application)
 
     def __call__(self, environ, start_response):
         try:
             return self.application(environ, start_response)
+        except Exception:
+            import traceback;traceback.print_exc()
+            return InternalServerError()(environ, start_response)
         finally:
             ContextLocals.purge()
+
+    def dispatch(self, environ, start_response):
+        raise NotImplementedError()
+
+class Middleware(object):
+    """A WSGI middleware."""
+
+    def __call__(self, environ, start_response):
+        return self.application(environ, start_response)
+
+    def wrap(self, application):
+        self.application = application
+        return self
 
 class Dispatcher(object):
     def __init__(self, mounts=None):
