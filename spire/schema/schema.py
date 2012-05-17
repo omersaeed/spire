@@ -24,6 +24,7 @@ class Schema(object):
                 return cls.schemas[name]
             except KeyError:
                 instance = cls.schemas[name] = super(Schema, cls).__new__(cls)
+                instance.constructors = []
                 instance.name = name
                 instance.metadata = MetaData()
                 SchemaDependency.register(name)
@@ -31,6 +32,13 @@ class Schema(object):
                 return instance
         finally:
             cls.guard.release()
+
+    @classmethod
+    def constructor(cls, name):
+        def decorator(function):
+            cls(name).constructors.append(function)
+            return function
+        return decorator
 
     @classmethod
     def interface(cls, name):
@@ -68,6 +76,8 @@ class SchemaInterface(Unit):
 
     def create_tables(self):
         self.schema.metadata.create_all(self.engine)
+        for constructor in self.schema.constructors:
+            constructor(self)
         return self
 
     def drop_tables(self):
