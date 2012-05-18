@@ -105,8 +105,6 @@ class Application(Mount):
         request = Request(self, environ, urls)
         response = None
 
-        print 'HERE'
-
         request.bind()
         try:
 
