@@ -1,0 +1,12 @@
+components:
+  - name: spire
+    dependencies:
+      - python
+      - jinja2
+      - sqlalchemy
+      - werkzeug
+    builds:
+      default:
+        script: |
+          python=$(find -L $BUILDROOT -type f -executable -name python)
+          $python setup.py install
