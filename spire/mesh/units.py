@@ -10,7 +10,7 @@ from spire.local import ContextLocals
 from spire.wsgi.application import Request
 from spire.wsgi.util import Mount
 
-__all__ = ('MeshClient', 'MeshProxy', 'MeshDependency', 'MeshServer')
+__all__ = ('MeshClient', 'MeshProxy', 'MeshDependency', 'MeshServer', 'set_mesh_context')
 
 CONTEXT_HEADER_PREFIX = 'X-SPIRE-'
 ContextLocal = ContextLocals.declare('mesh.context')
@@ -91,3 +91,13 @@ class MeshServer(Mount):
             return self.server(environ, start_response)
         finally:
             ContextLocal.pop()
+
+class set_mesh_context(object):
+    def __init__(self, context):
+        self.context = context
+
+    def __enter__(self):
+        ContextLocal.push(self.context)
+
+    def __exit__(self, *args):
+        ContextLocal.pop()

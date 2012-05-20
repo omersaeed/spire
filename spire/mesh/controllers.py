@@ -90,28 +90,28 @@ class ModelController(Unit, Controller):
         except NoResultFound:
             return None
 
-    def create(self, context, response, subject, data):
+    def create(self, request, response, subject, data):
         instance = self.model(**self._construct_model(data))
-        self._annotate_model(context, instance, data)
+        self._annotate_model(request, instance, data)
         self.schema.session.add(instance)
         self.schema.session.commit()
         response({'id': self._get_model_value(instance, 'id')})
 
-    def delete(self, context, response, subject, data):
+    def delete(self, request, response, subject, data):
         subject.session.delete(subject)
         subject.session.commit()
         response({'id': self._get_model_value(subject, 'id')})
 
-    def get(self, context, response, subject, data):
-        response(self._construct_resource(context, subject, data))
+    def get(self, request, response, subject, data):
+        response(self._construct_resource(request, subject, data))
 
-    def put(self, context, response, subject, data):
+    def put(self, request, response, subject, data):
         if subject:
-            self.update(context, response, subject, data)
+            self.update(request, response, subject, data)
         else:
-            self.create(context, response, subject, data)
+            self.create(request, response, subject, data)
 
-    def query(self, context, response, subject, data):
+    def query(self, request, response, subject, data):
         data = data or {}
         query = self.schema.session.query(self.model)
 
@@ -119,7 +119,7 @@ class ModelController(Unit, Controller):
         if filters:
             query = self._construct_filters(query, filters)
 
-        query = self._annotate_query(context, query, data)
+        query = self._annotate_query(request, query, data)
 
         total = query.count()
         if data.get('total'):
@@ -134,23 +134,23 @@ class ModelController(Unit, Controller):
 
         resources = []
         for instance in query.all():
-            resources.append(self._construct_resource(context, instance, data))
+            resources.append(self._construct_resource(request, instance, data))
 
         response({'total': total, 'resources': resources})
 
-    def update(self, context, response, subject, data):
+    def update(self, request, response, subject, data):
         subject.update_with_mapping(self._construct_model(data))
-        self._annotate_model(context, subject, data)
+        self._annotate_model(request, subject, data)
         subject.session.commit()
         response({'id': self._get_model_value(subject, 'id')})
 
-    def _annotate_model(self, context, model, data):
+    def _annotate_model(self, request, model, data):
         pass
 
-    def _annotate_resource(self, context, model, resource, data):
+    def _annotate_resource(self, request, model, resource, data):
         pass
 
-    def _annotate_query(self, context, query, data):
+    def _annotate_query(self, request, query, data):
         return query
 
     def _construct_filters(self, query, filters):
@@ -177,7 +177,7 @@ class ModelController(Unit, Controller):
                 model[attr] = data[name]
         return model
 
-    def _construct_resource(self, context, model, data, **resource):
+    def _construct_resource(self, request, model, data, **resource):
         include = exclude = EMPTY
         if data:
             include = data.get('include', EMPTY)
@@ -194,7 +194,7 @@ class ModelController(Unit, Controller):
             except AttributeError:
                 pass
 
-        self._annotate_resource(context, model, resource, data)
+        self._annotate_resource(request, model, resource, data)
         return resource
 
     def _construct_sorting(self, query, sorting):

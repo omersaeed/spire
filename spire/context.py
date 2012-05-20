@@ -28,7 +28,7 @@ class HeaderParser(object):
 
         for name, value in environ.iteritems():
             if name[:length] == prefix:
-                context[name[length:].lower()] = value
+                context[name[length:].lower().replace('_', '-')] = value
 
 class SessionParser(object):
     def __init__(self, key='request.context', environ_key='request.session'):
