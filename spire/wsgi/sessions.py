@@ -34,14 +34,14 @@ class SessionMiddleware(Unit, Middleware):
     def __init__(self, store):
         self.store = store['implementation'](**pruned(store, 'implementation'))
 
-    def __call__(self, environ, start_response):
+    def dispatch(self, application, environ, start_response):
         session = None
         if self.enabled:
             session = self._get_session(environ)
 
         environ['request.session'] = session
         if session is None:
-            return self.application(environ, start_response)
+            return application(environ, start_response)
 
         def injecting_start_response(status, headers, exc_info=None):
             if session.should_save:
@@ -49,7 +49,7 @@ class SessionMiddleware(Unit, Middleware):
                 headers.append(('Set-Cookie', self._construct_cookie(session)))
             return start_response(status, headers, exc_info)
 
-        return ClosingIterator(self.application(environ, injecting_start_response),
+        return ClosingIterator(application(environ, injecting_start_response),
             lambda: self.store.save_if_modified(session))
 
     def _construct_cookie(self, session):

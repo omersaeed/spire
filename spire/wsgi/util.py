@@ -33,15 +33,17 @@ class Mount(Unit):
     def dispatch(self, environ, start_response):
         raise NotImplementedError()
 
-class Middleware(object):
-    """A WSGI middleware."""
+class MiddlewareWrapper(object):
+    def __init__(self, wrapper, application):
+        self.application = application
+        self.wrapper = wrapper
 
     def __call__(self, environ, start_response):
-        return self.application(environ, start_response)
+        return self.wrapper.dispatch(self.application, environ, start_response)
 
+class Middleware(object):
     def wrap(self, application):
-        self.application = application
-        return self
+        return MiddlewareWrapper(self, application)
 
 class Dispatcher(object):
     def __init__(self, mounts=None):

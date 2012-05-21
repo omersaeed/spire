@@ -5,9 +5,9 @@ class ContextMiddleware(Middleware):
         self.key = key
         self.parsers = parsers
 
-    def __call__(self, environ, start_response):
+    def dispatch(self, application, environ, start_response):
         self._parse_context(environ)
-        return self.application(environ, start_response)
+        return application(environ, start_response)
 
     def _parse_context(self, environ):
         context = environ.get(self.key)
