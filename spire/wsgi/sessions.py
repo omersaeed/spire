@@ -65,3 +65,6 @@ class SessionMiddleware(Unit, Middleware):
             return self.store.get(id)
         else:
             return self.store.new()
+
+def get_session(environ):
+    return environ.get('request.session')
