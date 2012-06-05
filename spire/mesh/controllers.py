@@ -81,7 +81,13 @@ class ModelController(Unit, Controller):
             if isinstance(mapping, basestring):
                 mapping = mapping.split(' ')
             if isinstance(mapping, (list, tuple)):
-                mapping = dict(zip(mapping, mapping))
+                pairs = {}
+                for pair in mapping:
+                    if isinstance(pair, (list, tuple)):
+                        pairs[pair[0]] = pair[1]
+                    else:
+                        pairs[pair] = pair
+                mapping = pairs
             cls.mapping = mapping
 
     def acquire(self, subject):
@@ -91,8 +97,9 @@ class ModelController(Unit, Controller):
             return None
 
     def create(self, request, response, subject, data):
-        instance = self.model(**self._construct_model(data))
+        instance = self.model.polymorphic_create(self._construct_model(data))
         self._annotate_model(request, instance, data)
+
         self.schema.session.add(instance)
         self.schema.session.commit()
         response({'id': self._get_model_value(instance, 'id')})
@@ -139,9 +146,10 @@ class ModelController(Unit, Controller):
         response({'total': total, 'resources': resources})
 
     def update(self, request, response, subject, data):
-        subject.update_with_mapping(self._construct_model(data))
-        self._annotate_model(request, subject, data)
-        subject.session.commit()
+        if data:
+            subject.update_with_mapping(self._construct_model(data))
+            self._annotate_model(request, subject, data)
+            subject.session.commit()
         response({'id': self._get_model_value(subject, 'id')})
 
     def _annotate_model(self, request, model, data):
