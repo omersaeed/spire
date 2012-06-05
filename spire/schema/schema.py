@@ -1,5 +1,7 @@
 from threading import Lock
 
+from mesh.standard import OperationError, ValidationError
+
 from scheme import Boolean, Text
 from scheme.supplemental import ObjectReference
 from sqlalchemy import MetaData, create_engine, event
@@ -9,7 +11,7 @@ from spire.core import *
 from spire.local import ContextLocals
 from spire.schema.pool import EnginePool
 
-__all__ = ('Schema', 'SchemaDependency', 'SchemaInterface')
+__all__ = ('OperationError', 'Schema', 'SchemaDependency', 'SchemaInterface', 'ValidationError')
 
 SessionLocals = ContextLocals.create_prefixed_proxy('schema.session')
 

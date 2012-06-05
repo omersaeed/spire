@@ -3,6 +3,7 @@ from threading import Lock
 from sqlalchemy import Column, MetaData, Table, event
 from sqlalchemy.ext.declarative import DeclarativeMeta, declarative_base
 from sqlalchemy.orm import mapper
+from sqlalchemy.orm.attributes import InstrumentedAttribute
 from sqlalchemy.orm.mapper import Mapper
 from sqlalchemy.orm.properties import ColumnProperty
 from sqlalchemy.orm.session import object_session
@@ -100,7 +101,8 @@ class ModelBase(object):
     def __init__(self, **params):
         cls = type(self)
         for attr, value in params.iteritems():
-            if hasattr(cls, attr):
+            definition = getattr(cls, attr, None)
+            if isinstance(definition, InstrumentedAttribute):
                 setattr(self, attr, value)
 
     def __repr__(self):
