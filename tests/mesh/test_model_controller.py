@@ -5,6 +5,7 @@ from mesh.standard import *
 from mesh.transport.base import ServerResponse
 
 from spire.core import *
+from spire.local import ContextLocals
 from spire.mesh.controllers import ModelController
 from spire import schema as _schema
 from spire.util import uniqid
@@ -78,6 +79,7 @@ class ModelControllerTestCase(TestCase):
         if not response.status:
             response.status = OK
 
+        ContextLocals.purge()
         return response
 
     def _execute_query(self, **filters):

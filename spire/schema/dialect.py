@@ -41,11 +41,10 @@ class PostgresqlDialect(Dialect):
             cursor.close()
 
     def create_engine_for_schema(self, url, schema, echo=False):
-        name = schema.name
         def listener(connection, record, proxy):
             cursor = connection.cursor()
             try:
-                cursor.execute('set search_path to %s', [name])
+                cursor.execute('set search_path to %s', [schema])
             finally:
                 cursor.close()
 
@@ -105,7 +104,18 @@ class PostgresqlDialect(Dialect):
         return connection
 
 class SqliteDialect(Dialect):
-    pass
+    def create_engine_for_schema(self, url, schema, echo=False):
+        engine = create_engine(url, echo=echo)
+
+        @event.listens_for(engine, 'connect')
+        def handle_checkout(connection, record):
+            connection.isolation_level = None
+
+        @event.listens_for(engine, 'begin')
+        def handle_begin(connection):
+            connection.execute('begin')
+
+        return engine
 
 DIALECTS = {
     ('postgresql', 'psycopg2'): PostgresqlDialect,

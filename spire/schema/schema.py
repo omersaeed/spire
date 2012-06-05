@@ -87,6 +87,8 @@ class SchemaInterface(Unit):
 
         for constructor in self.schema.constructors:
             constructor(session)
+
+        session.close()
         return self
 
     def drop_tables(self, **params):
