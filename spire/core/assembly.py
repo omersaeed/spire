@@ -2,9 +2,9 @@ from threading import RLock, local
 
 from spire.core.registry import Registry
 from spire.exceptions import *
-from spire.util import recursive_merge
+from spire.util import import_object, recursive_merge
 
-__all__ = ('Assembly',)
+__all__ = ('Assembly', 'get_unit')
 
 class Local(local):
     assembly = None
@@ -68,6 +68,8 @@ class Assembly(object):
         return self
 
     def instantiate(self, unit):
+        if isinstance(unit, basestring):
+            unit = import_object(unit)
         return self.acquire(unit.identity, unit, ())
 
     def should_isolate(self, identity):
@@ -85,3 +87,6 @@ class Assembly(object):
         return self
 
 Assembly.standard = Assembly()
+
+def get_unit(unit):
+    return Assembly.current().instantiate(unit)
