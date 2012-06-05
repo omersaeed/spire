@@ -1,11 +1,13 @@
 from threading import Lock
 
 from scheme import Boolean, Text
-from sqlalchemy import MetaData, create_engine
+from scheme.supplemental import ObjectReference
+from sqlalchemy import MetaData, create_engine, event
 from sqlalchemy.orm.session import sessionmaker
 
 from spire.core import *
 from spire.local import ContextLocals
+from spire.schema.pool import EnginePool
 
 __all__ = ('Schema', 'SchemaDependency', 'SchemaInterface')
 
@@ -47,41 +49,46 @@ class Schema(object):
 class SchemaInterface(Unit):
     configuration = Configuration({
         'echo': Boolean(default=False),
+        'pool': ObjectReference(default=EnginePool),
         'schema': Text(nonempty=True),
         'url': Text(nonempty=True),
     })
 
-    def __init__(self, schema, url, echo=False):
+    def __init__(self, schema, pool):
         if isinstance(schema, basestring):
             schema = Schema.schemas[schema]
-
-        self.engine = create_engine(url, echo=echo)
+    
+        self.pool = pool(self.configuration)
         self.schema = schema
-        self.session_maker = sessionmaker(bind=self.engine)
 
     @property
     def session(self):
         return self.get_session()
 
-    def get_session(self, independent=False):
+    def get_engine(self, **params):
+        return self.pool.get_engine(**params)
+
+    def get_session(self, independent=False, **params):
         if independent:
-            return self.session_maker()
+            return self.pool.get_session(**params)
 
         session = SessionLocals.get(self.schema.name)
         if session:
             return session
 
-        session = self.session_maker()
+        session = self.pool.get_session(**params)
         return SessionLocals.push(self.schema.name, session, session.close)
 
-    def create_tables(self):
-        self.schema.metadata.create_all(self.engine)
+    def create_tables(self, **params):
+        self.schema.metadata.create_all(self.get_engine(**params))
+        session = self.get_session(True, **params)
+
         for constructor in self.schema.constructors:
-            constructor(self)
+            constructor(session)
         return self
 
-    def drop_tables(self):
-        self.schema.metadata.drop_all(self.engine)
+    def drop_tables(self, **params):
+        self.schema.metadata.drop_all(self.get_engine(**params))
         return self
 
 class SchemaDependency(Dependency):

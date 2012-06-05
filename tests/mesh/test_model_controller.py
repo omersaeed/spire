@@ -111,7 +111,7 @@ class TestQuerySorting(ModelControllerTestCase):
         for name, value in self.EXAMPLES:
             examples.append({'id': uniqid(), 'name': name, 'value': value})
 
-        with self.interface.engine.begin() as connection:
+        with self.interface.get_engine().begin() as connection:
             connection.execute(Example.__table__.insert(), *examples)
 
     def test_without_sorting(self):
@@ -141,7 +141,7 @@ class TestQueryOperatiors(ModelControllerTestCase):
         for i, name in enumerate(self.NAMES.split(' ')):
             examples.append({'id': uniqid(), 'name': name, 'value': i})
 
-        with self.interface.engine.begin() as connection:
+        with self.interface.get_engine().begin() as connection:
             connection.execute(Example.__table__.insert(), *examples)
 
     def test_simple_query(self):
