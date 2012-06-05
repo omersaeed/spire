@@ -144,6 +144,20 @@ def recursive_merge(original, addition):
             original[key] = value
     return original
 
+VALID_CHARS_EXPR = re.compile(r'[^\w\s-]')
+SPACER_EXPR = re.compile(r'[-_\s]+')
+
+def slugify(value, spacer='-', lowercase=True):
+    if not isinstance(value, unicode):
+        value = unicode(value)
+
+    value = value.encode('ascii', 'ignore')
+    value = VALID_CHARS_EXPR.sub('', value).strip()
+
+    if lowercase:
+        value = value.lower()
+    return SPACER_EXPR.sub(spacer, value)
+
 def trace_stack(indent=''):
     lines = []
     for frame, filename, lineno, context, source, pos in reversed(stack()[1:]):
