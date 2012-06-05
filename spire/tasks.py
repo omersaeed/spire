@@ -9,7 +9,7 @@ class StartShell(Task):
     name = 'spire.shell'
     description = 'starts a spire server using the python shell'
     parameters = {
-        'config': Text(description='path to spire configuration', required=True),
+        'config': Text(description='path to spire configuration', default='spire.yaml'),
         'ipython': Boolean(description='use ipython if available', default=True),
     }
 
