@@ -137,7 +137,7 @@ class ModelBase(object):
     def polymorphic_create(cls, data):
         column = cls.__mapper__.polymorphic_on
         if column is None:
-            raise TypeError(cls)
+            return cls(**data)
 
         identity = data.get(column.name)
         if not identity:
