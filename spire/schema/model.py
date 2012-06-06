@@ -152,14 +152,16 @@ class ModelBase(object):
             raise ValueError(identity)
 
     def update_with_mapping(self, mapping=None, **params):
-        cls = type(self)
-        for attr, value in params.iteritems():
-            setattr(self, attr, value)
-
         if mapping:
             for attr, value in mapping.iteritems():
                 if attr not in params:
-                    setattr(self, attr, value)
+                    params[attr] = value
+
+        cls = type(self)
+        for attr, value in params.iteritems():
+            if isinstance(getattr(cls, attr, None), InstrumentedAttribute):
+                setattr(self, attr, value)
+
         return self
 
 Model = declarative_base(cls=ModelBase, constructor=None, name='Model', metaclass=ModelMeta)
