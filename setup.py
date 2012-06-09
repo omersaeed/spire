@@ -1,4 +1,10 @@
+import os
 from distutils.core import setup
+
+packages = []
+for root, dirs, files in os.walk('spire'):
+    if '__init__.py' in files:
+        packages.append(root.replace('/', '.'))
 
 setup(
     name='spire',
@@ -8,15 +14,7 @@ setup(
     author_email='mccoy.jordan@gmail.com',
     license='BSD',
     url='http://github.com/jordanm/spire',
-    packages=[
-        'spire',
-        'spire.core',
-        'spire.drivers',
-        'spire.mesh',
-        'spire.schema',
-        'spire.support',
-        'spire.wsgi',
-    ],
+    packages=packages,
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
