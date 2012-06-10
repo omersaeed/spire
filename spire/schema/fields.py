@@ -125,7 +125,7 @@ class TimeType(TypeDecorator, ValidatesMinMax):
 
 class TokenType(TypeDecorator):
     impl = types.Text
-    pattern = re.compile(r'^\w[-.\w]*(?<=\w)(?::\w[-.\w]*(?<=\w))*$')
+    pattern = re.compile(r'^\w[-+.\w]*(?<=\w)(?::\w[-+.\w]*(?<=\w))*$')
 
     def __init__(self, segments=None):
         super(TokenType, self).__init__()
