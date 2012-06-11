@@ -37,10 +37,9 @@ class Schema(object):
         finally:
             cls.guard.release()
 
-    @classmethod
-    def constructor(cls, name):
+    def constructor(self):
         def decorator(function):
-            cls(name).constructors.append(function)
+            self.constructors.append(function)
             return function
         return decorator
 
