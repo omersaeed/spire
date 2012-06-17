@@ -15,6 +15,9 @@ setup(
     license='BSD',
     url='http://github.com/jordanm/spire',
     packages=packages,
+    package_data={
+        'spire.schema': ['templates/*'],
+    },
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',

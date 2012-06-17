@@ -40,18 +40,6 @@ class PostgresqlDialect(Dialect):
         finally:
             cursor.close()
 
-    def create_engine_for_schema(self, url, schema, echo=False):
-        def listener(connection, record, proxy):
-            cursor = connection.cursor()
-            try:
-                cursor.execute('set search_path to %s', [schema])
-            finally:
-                cursor.close()
-
-        engine = create_engine(url, echo=echo)
-        event.listen(engine, 'checkout', listener)
-        return engine
-
     def create_role(self, url, name, login=True, superuser=False):
         sql = ['create role %s' % validate_sql_identifier(name)]
         if login:

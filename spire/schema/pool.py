@@ -8,9 +8,13 @@ class EnginePool(object):
     """An engine pool."""
 
     def __init__(self, configuration):
+        echo = configuration.get('echo')
+        if echo:
+            echo = 'debug'
+
         url = configuration['url']
         self.engine = get_dialect(url).create_engine_for_schema(url,
-            configuration['schema'], echo=configuration.get('echo'))
+            configuration['schema'], echo=echo)
         self.session_maker = sessionmaker(bind=self.engine)
 
     def get_engine(self, **params):
@@ -47,10 +51,13 @@ class FederatedEnginePool(EnginePool):
             if token in self.cache:
                 return self.cache[token]
 
+            echo = self.configuration.get('echo')
+            if echo:
+                echo = 'debug'
+
             url = self.configuration['url'] + token
             engine = self.dialect.create_engine_for_schema(url, 
-                self.configuration['schema'],
-                echo=self.configuration.get('echo'))
+                self.configuration['schema'], echo=echo)
             session_maker = sessionmaker(bind=engine)
 
             self.cache[token] = (engine, session_maker)

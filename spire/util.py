@@ -73,13 +73,25 @@ def get_package_path(module, path=None):
         fullpath = os.path.join(fullpath, path)
     return fullpath
 
-def identify_object(obj):
+def identify_object(obj, cache={}):
     if isinstance(obj, ModuleType):
         return obj.__name__
     elif isinstance(obj, object) and isinstance(obj, type):
         if obj.__module__ == '__main__':
             return obj.__name__
         return '%s.%s' % (obj.__module__, obj.__name__)
+
+    try:
+        return cache[obj]
+    except KeyError:
+        pass
+
+    for name, module in sys.modules.iteritems():
+        if module:
+            for attr, value in module.__dict__.iteritems():
+                if value is obj:
+                    identity = cache[obj] = '%s.%s' % (name, attr)
+                    return identity
     else:
         raise TypeError(obj)
 

@@ -67,6 +67,16 @@ class Assembly(object):
             self.local.assembly = None
         return self
 
+    def filter_configuration(self, prefix):
+        if prefix[-1] != ':':
+            prefix += ':'
+
+        filtered = {}
+        for token, data in self.configuration.iteritems():
+            if token.startswith(prefix):
+                filtered[token] = data
+        return filtered
+
     def instantiate(self, unit):
         if isinstance(unit, basestring):
             unit = import_object(unit)

@@ -6,8 +6,9 @@ from sqlalchemy.types import TypeDecorator
 
 from spire.util import uniqid
 
-__all__ = ('Boolean', 'Date', 'DateTime', 'Decimal', 'Email', 'Enumeration', 'Float',
-    'ForeignKey', 'Identifier', 'Integer', 'Text', 'Time', 'Token', 'UUID')
+class TypeDecorator(TypeDecorator):
+    def __repr__(self):
+        return '%s()' % type(self).__name__
 
 class MutableDict(Mutable, dict):
     @classmethod
