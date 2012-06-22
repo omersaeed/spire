@@ -4,7 +4,7 @@ from spire.core.registry import Registry
 from spire.exceptions import *
 from spire.util import import_object, recursive_merge
 
-__all__ = ('Assembly', 'get_unit')
+__all__ = ('Assembly', 'adhoc_configure', 'get_unit')
 
 class Local(local):
     assembly = None
@@ -97,6 +97,9 @@ class Assembly(object):
         return self
 
 Assembly.standard = Assembly()
+
+def adhoc_configure(configuration):
+    Assembly.current().configure(configuration)
 
 def get_unit(unit):
     return Assembly.current().instantiate(unit)
