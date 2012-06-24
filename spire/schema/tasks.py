@@ -80,6 +80,10 @@ class MigrationTask(SpireTask):
 
         raise TaskError('no schema specified')
 
+    def prepare_environment(self):
+        root = self['path']
+        (root / 'versions').mkdir_p()
+
 class InitializeMigrations(MigrationTask):
     name = 'spire.migrations.init'
     description = 'initialize a migrations directory for a schema'
@@ -112,6 +116,7 @@ class CreateMigration(MigrationTask):
     }
 
     def run(self, runtime):
+        self.prepare_environment()
         command.revision(self.config, message=self['title'], autogenerate=self['autogenerate'])
 
 class Downgrade(MigrationTask):
