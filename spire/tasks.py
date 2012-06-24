@@ -1,9 +1,18 @@
 import os
+from pprint import pformat
 
 from bake import *
 from scheme import *
 
+from spire.support.task import SpireTask
 from spire.schema.tasks import *
+
+class DumpConfiguration(SpireTask):
+    name = 'spire.dump-configuration'
+    
+    def run(self, runtime):
+        self.prepare(runtime)
+        runtime.report(pformat(self.assembly.configuration), True)
 
 class StartShell(Task):
     name = 'spire.shell'
@@ -28,12 +37,11 @@ class StartShell(Task):
         else:
             os.execvp('python', ['python', '-i', '-m', 'spire.drivers.shell', self['config']])
 
-class StartWsgiServer(Task):
+class StartWsgiServer(SpireTask):
     name = 'spire.wsgi'
     description = 'starts a spire server using the wsgi driver'
     parameters = {
-        'address': Text(description='hostname:port', required=True),
-        'config': Text(description='path to configuration file', required=True),
+        'address': Text(description='hostname:port', default='localhost:8000'),
     }
 
     def run(self, runtime):
