@@ -89,7 +89,7 @@ class SchemaInterface(Unit):
         session.close()
 
         migrations = self._get_migration_interface()
-        if migrations:
+        if migrations and migrations.has_revisions:
             migrations.stamp()
 
     def deploy_schema(self, **tokens):
@@ -101,7 +101,7 @@ class SchemaInterface(Unit):
             return self.create_schema(**tokens)
 
         migrations = self._get_migration_interface()
-        if migrations:
+        if migrations and migrations.has_revisions:
             migrations.upgrade()
 
     def drop_schema(self, **tokens):
