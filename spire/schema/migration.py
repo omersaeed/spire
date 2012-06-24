@@ -14,7 +14,10 @@ class MigrationInterface(object):
 
     @property
     def has_revisions(self):
-        return bool(ScriptDirectory.from_config(self.config).get_heads())
+        try:
+            return bool(ScriptDirectory.from_config(self.config).get_heads())
+        except OSError:
+            return False
 
     def stamp(self, revision='head'):
         command.stamp(self.config, revision)
