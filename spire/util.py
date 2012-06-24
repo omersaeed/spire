@@ -41,12 +41,6 @@ def get_constructor_args(cls, ignore_private=True, cache={}):
     return arguments
 
 def get_package_data(module, path=None):
-    if path is None:
-        if ':' in module:
-            module, path = module.split(':', 1)
-        else:
-            raise ValueError(path)
-
     openfile = open(get_package_path(module, path))
     try:
         return openfile.read()
@@ -54,6 +48,12 @@ def get_package_data(module, path=None):
         openfile.close()
 
 def get_package_path(module, path=None):
+    if path is None:
+        if ':' in module:
+            module, path = module.split(':', 1)
+        else:
+            raise ValueError(path)
+
     if isinstance(module, basestring):
         module = __import__(module, None, None, [module.split('.')[-1]])
     if not isinstance(module, list):

@@ -34,15 +34,30 @@ class CreateSchema(SpireTask):
         for name in schemas:
             interface = Schema.interface(name)
             if not self['incremental']:
-                interface.drop_tables()
+                interface.drop_schema()
 
             runtime.report('creating %r schema' % name)
-            interface.create_tables()
+            interface.create_schema()
+
+class DeploySchema(SpireTask):
+    name = 'spire.schema.deploy'
+    description = 'deploys a spire schema'
+    parameters = {
+        'schema': Text(nonempty=True),
+    }
+
+    def run(self, runtime):
+        from spire.schema import Schema
+        name = self['schema']
+        interface = Schema.interface(name)
+
+        runtime.report('deploying schema %r' % name)
+        interface.deploy_schema()
 
 class MigrationTask(SpireTask):
     supported = bool(alembic)
     parameters = {
-        'path': Path(description='path to migrations directory', default=path('migrations')),
+        'path': Path(description='path to migrations directory', required=True),
         'schema': Text(description='name of target schema'),
     }
 
@@ -50,7 +65,7 @@ class MigrationTask(SpireTask):
     def config(self):
         from alembic.config import Config
         config = Config()
-        config.set_main_option('script_location', str(self['path'] / self.schema))
+        config.set_main_option('script_location', str(self['path']))
         return config
 
     @property
@@ -70,15 +85,12 @@ class InitializeMigrations(MigrationTask):
     description = 'initialize a migrations directory for a schema'
 
     def run(self, runtime):
-        self['path'].makedirs_p()
-        schema = self.schema
-
-        root = self['path'] / schema
+        root = self['path']
         if root.exists():
             runtime.report('migrations directory exists for %r; aborting' % schema)
             return
 
-        root.mkdir()
+        root.makedirs_p()
         (root / 'versions').mkdir()
 
         script = get_package_data('spire.schema:templates/script.py.mako.tmpl')
@@ -86,10 +98,10 @@ class InitializeMigrations(MigrationTask):
 
         env = get_package_data('spire.schema:templates/env.py.tmpl')
         (root / 'env.py').write_bytes(env % {
-            'schema': schema,
+            'schema': self.schema,
         })
 
-        runtime.report('created migrations directory for %r' % schema)
+        runtime.report('created migrations directory for %r' % self.schema)
 
 class CreateMigration(MigrationTask):
     name = 'spire.migrations.create'
@@ -106,7 +118,7 @@ class Downgrade(MigrationTask):
     name = 'spire.migrations.downgrade'
     description = 'downgrade to an older version of the schema'
     parameters = {
-        'revision': Text(description='revision to downgrade to', default='head'),
+        'revision': Text(description='revision to downgrade to', default='base'),
         'sql': Boolean(description='generate sql instead of downgrading database', default=False),
     }
 

@@ -7,10 +7,10 @@ class Dialect(object):
     def __init__(self, dialect):
         self.dialect = dialect
 
-    def create_database(self, url, **params):
+    def create_database(self, url, name, conditional=True, **params):
         pass
 
-    def create_engine_for_schema(self, url, schema, echo=False):
+    def create_engine(self, url, schema, echo=False):
         return create_engine(url, echo=echo)
 
     def create_role(self, url, name, **params):
@@ -19,26 +19,28 @@ class Dialect(object):
     def create_schema(self, url, name, **params):
         pass
 
+    def drop_database(self, url, name, conditional=True):
+        pass
+
     def drop_role(self, url, name, **params):
         pass
 
     def drop_schema(self, url, name, **params):
         pass
 
-class PostgresqlDialect(Dialect):
-    def create_database(self, url, owner=None, extant_database='postgres'):
-        url, dbname = url.rsplit('/', 1)
-        connection = self._get_connection('%s/%s' % (url, extant_database))
+    def is_database_present(self, url, name):
+        return False
 
-        sql = 'create database %s' % validate_sql_identifier(dbname)
+class PostgresqlDialect(Dialect):
+    def create_database(self, url, name, conditional=True, owner=None):
+        if conditional and self.is_database_present(url, name):
+            return
+
+        sql = 'create database %s' % validate_sql_identifier(name)
         if owner:
             sql += ' owner %s' % validate_sql_identifier(owner)
 
-        cursor = connection.cursor()
-        try:
-            cursor.execute(sql)
-        finally:
-            cursor.close()
+        self._execute_statement(url, sql)
 
     def create_role(self, url, name, login=True, superuser=False):
         sql = ['create role %s' % validate_sql_identifier(name)]
@@ -54,6 +56,14 @@ class PostgresqlDialect(Dialect):
         if owner:
             sql += ' authorization %s' % validate_sql_identifier(owner)
 
+        self._execute_statement(url, sql)
+
+    def drop_database(self, url, name, conditional=True):
+        sql = ['drop database']
+        if conditional:
+            sql.append('if exists')
+
+        sql.append(validate_sql_identifier(name))
         self._execute_statement(url, sql)
 
     def drop_role(self, url, name, if_exists=True):
@@ -75,13 +85,22 @@ class PostgresqlDialect(Dialect):
 
         self._execute_statement(url, sql)
 
-    def _execute_statement(self, url, sql):
+    def is_database_present(self, url, name):
+        name = validate_sql_identifier(name)
+        sql = "select count(*) from pg_database where datname = '%s'" % name
+
+        row = self._execute_statement(url, sql, True)
+        return row[0] == 1
+
+    def _execute_statement(self, url, sql, result=False):
         if isinstance(sql, list):
             sql = ' '.join(sql)
 
         cursor = self._get_connection(url).cursor()
         try:
             cursor.execute(sql)
+            if result:
+                return cursor.next()
         finally:
             cursor.close()
 
@@ -92,7 +111,7 @@ class PostgresqlDialect(Dialect):
         return connection
 
 class SqliteDialect(Dialect):
-    def create_engine_for_schema(self, url, schema, echo=False):
+    def create_engine(self, url, schema, echo=False):
         engine = create_engine(url, echo=echo)
 
         @event.listens_for(engine, 'connect')
