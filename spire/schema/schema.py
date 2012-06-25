@@ -112,6 +112,10 @@ class SchemaInterface(Unit):
         if admin_url:
             self.dialect.drop_database(admin_url, name)
 
+    def drop_tables(self, **tokens):
+        engine, sessions = self._acquire_engine(tokens)
+        self.schema.metadata.drop_all(engine)
+
     def get_engine(self, **tokens):
         engine, sessions = self._acquire_engine(tokens)
         return engine
