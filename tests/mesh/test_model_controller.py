@@ -57,7 +57,7 @@ class ModelControllerTestCase(TestCase):
         })
 
         self.interface = _schema.Schema.interface('example')
-        self.interface.create_tables()
+        self.interface.create_schema()
 
         try:
             self._create_examples()

@@ -63,32 +63,47 @@ class FilterOperators(object):
     def notin_op(self, query, column, value):
         return query.filter(not_(column.in_(value)))
 
+def parse_attr_mapping(mapping):
+    if isinstance(mapping, basestring):
+        mapping = mapping.split(' ')
+    if isinstance(mapping, (list, tuple)):
+        pairs = {}
+        for pair in mapping:
+            if isinstance(pair, (list, tuple)):
+                pairs[pair[0]] = pair[1]
+            else:
+                pairs[pair] = pair
+        mapping = pairs
+    return mapping
+
 class ModelController(Unit, Controller):
     """A mesh controller for spire.schema models."""
 
     model = None
     schema = None
     mapping = None
+    polymorphic_mapping = None
+    polymorphic_on = None
     operators = FilterOperators()
 
     @classmethod
     def __construct__(cls):
         Controller.__construct__()
         if cls.resource:
+            mapping = cls.polymorphic_mapping
+            if mapping:
+                for identity, submapping in mapping.items():
+                    mapping[identity] = parse_attr_mapping(submapping)
+                return
+
+            attr = cls.polymorphic_on
+            if attr and not isinstance(attr, tuple):
+                cls.polymorphic_on = (attr, attr)
+
             mapping = cls.mapping
             if mapping is None:
                 mapping = cls.resource.filter_schema().keys()
-            if isinstance(mapping, basestring):
-                mapping = mapping.split(' ')
-            if isinstance(mapping, (list, tuple)):
-                pairs = {}
-                for pair in mapping:
-                    if isinstance(pair, (list, tuple)):
-                        pairs[pair[0]] = pair[1]
-                    else:
-                        pairs[pair] = pair
-                mapping = pairs
-            cls.mapping = mapping
+            cls.mapping = parse_attr_mapping(mapping)
 
     def acquire(self, subject):
         try:
@@ -179,20 +194,29 @@ class ModelController(Unit, Controller):
         return query
 
     def _construct_model(self, data):
+        mapping = self.mapping
+        if self.polymorphic_on:
+            mapping = self.polymorphic_mapping[data[self.polymorphic_on[0]]]
+
         model = {}
-        for name, attr in self.mapping.iteritems():
+        for name, attr in mapping.iteritems():
             if name in data:
                 model[attr] = data[name]
         return model
 
     def _construct_resource(self, request, model, data, **resource):
+        mapping = self.mapping
+        if self.polymorphic_on:
+            identity = getattr(model, self.polymorphic_on[1])
+            mapping = self.polymorphic_mapping[identity]
+
         include = exclude = EMPTY
         if data:
             include = data.get('include', EMPTY)
             exclude = data.get('exclude', EMPTY)
 
         schema = self.resource.schema
-        for name, attr in self.mapping.iteritems():
+        for name, attr in mapping.iteritems():
             field = schema[name]
             if not field.is_identifier:
                 if name in exclude or (field.deferred and name not in include):

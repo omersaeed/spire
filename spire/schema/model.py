@@ -128,6 +128,8 @@ class ModelBase(object):
             attrs = dict(zip(attrs, attrs))
 
         if exclude:
+            if isinstance(exclude, basestring):
+                exclude = exclude.split(' ')
             for attr in exclude:
                 attrs.pop(attr, None)
 
