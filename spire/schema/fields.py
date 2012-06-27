@@ -38,6 +38,9 @@ class ValidatesMinMax(object):
         if maximum is not None and value > maximum:
             raise ValueError()
 
+class BooleanType(types.Boolean):
+    pass
+
 class DateType(TypeDecorator, ValidatesMinMax):
     impl = types.Date
 
@@ -65,11 +68,12 @@ class DecimalType(TypeDecorator, ValidatesMinMax):
 class EnumerationType(TypeDecorator):
     impl = types.Text
 
-    def __init__(self, enumeration):
+    def __init__(self, enumeration=None):
         super(EnumerationType, self).__init__()
-        if isinstance(enumeration, basestring):
-            enumeration = enumeration.split(' ')
-        self.enumeration = enumeration
+        if enumeration is not None:
+            if isinstance(enumeration, basestring):
+                enumeration = enumeration.split(' ')
+            self.enumeration = enumeration
 
     def validate(self, instance, column, value):
         if value in self.enumeration:
@@ -153,7 +157,7 @@ class UUIDType(TextType):
     pattern = re.compile(r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$')
 
 def Boolean(nullable=False, **params):
-    return Column(types.Boolean(), nullable=nullable, **params)
+    return Column(BooleanType(), nullable=nullable, **params)
 
 def Date(minimum=None, maximum=None, **params):
     return Column(DateType(minimum, maximum), **params)
