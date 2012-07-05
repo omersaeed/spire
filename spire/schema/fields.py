@@ -97,6 +97,17 @@ class IntegerType(TypeDecorator, ValidatesMinMax):
         self.minimum = minimum
         self.maximum = maximum
 
+class SerializedType(TypeDecorator):
+    impl = types.Text
+
+    def process_bind_param(self, value, dialect):
+        if value is not None:
+            return json.dumps(sort_keys=True)
+
+    def process_result_value(self, value, dialect):
+        if value is not None:
+            return json.loads(value)
+
 class TextType(TypeDecorator):
     impl = types.Text
     pattern = None
@@ -190,6 +201,9 @@ def Identifier(**params):
 
 def Integer(minimum=None, maximum=None, **params):
     return Column(IntegerType(minimum, maximum), **params)
+
+def Serialized(**params):
+    return Column(SerializedType(), **params)
 
 def Text(pattern=None, min_length=None, max_length=None, **params):
     return Column(TextType(pattern, min_length, max_length), **params)
