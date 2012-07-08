@@ -2,6 +2,7 @@ from scheme import Format, Sequence, Structure
 from scheme.supplemental import ObjectReference
 
 from spire.core import Assembly
+from spire.support.logs import configure_logging
 from spire.util import recursive_merge
 
 class Driver(object):
@@ -19,6 +20,10 @@ class Driver(object):
             configuration = Format.read(configuration, quiet=True)
             if not configuration:
                 return
+
+        if 'logging' in configuration:
+            configure_logging(configuration['logging'])
+
         if 'spire' in configuration:
             configuration = configuration['spire']
 

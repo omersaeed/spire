@@ -37,11 +37,12 @@ class StartShell(Task):
         else:
             os.execvp('python', ['python', '-i', '-m', 'spire.drivers.shell', self['config']])
 
-class StartWsgiServer(SpireTask):
+class StartWsgiServer(Task):
     name = 'spire.wsgi'
     description = 'starts a spire server using the wsgi driver'
     parameters = {
         'address': Text(description='hostname:port', default='localhost:8000'),
+        'config': Path(description='path to spire configuration file', default=path('spire.yaml')),
     }
 
     def run(self, runtime):
