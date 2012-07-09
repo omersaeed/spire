@@ -100,7 +100,6 @@ class Dependency(object):
             if self.token:
                 token = self.token
                 if token not in assembly.configuration and self.configuration_required:
-                    print assembly.configuration
                     raise ConfigurationError(token)
                 if identity and not assembly.should_isolate(identity):
                     identity = None
