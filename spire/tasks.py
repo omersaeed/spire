@@ -12,7 +12,20 @@ class DumpConfiguration(SpireTask):
     
     def run(self, runtime):
         self.prepare(runtime)
+        self.driver.deploy()
         runtime.report(pformat(self.assembly.configuration), True)
+
+class StartDaemon(Task):
+    name = 'spire.daemon'
+    description = 'starts a spire server using the daemon driver'
+    parameters = {
+        'config': Path(description='path to spire configuration file', default=path('spire.yaml')),
+        'detached': Boolean(),
+    }
+
+    def run(self, runtime):
+        from spire.drivers.daemon import Driver
+        Driver(self['config'], detached=self['detached'])
 
 class StartShell(Task):
     name = 'spire.shell'

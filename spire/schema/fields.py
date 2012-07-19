@@ -1,3 +1,4 @@
+import json
 import re
 
 from sqlalchemy import Column, ForeignKey as _ForeignKey, types
@@ -102,7 +103,7 @@ class SerializedType(TypeDecorator):
 
     def process_bind_param(self, value, dialect):
         if value is not None:
-            return json.dumps(sort_keys=True)
+            return json.dumps(value, sort_keys=True)
 
     def process_result_value(self, value, dialect):
         if value is not None:

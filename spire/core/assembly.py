@@ -41,7 +41,7 @@ class Assembly(object):
         finally:
             self.guard.release()
 
-    def collate(self, superclass):
+    def collate(self, superclass, single=False):
         units = set()
         for unit in self.cache.values():
             if isinstance(unit, superclass):
@@ -49,7 +49,15 @@ class Assembly(object):
             for dependency in unit.dependencies.itervalues():
                 if issubclass(dependency.unit, superclass):
                     units.add(dependency.get(unit))
-        return units
+
+        if not single:
+            return units
+        elif len(units) > 1:
+            raise Exception()
+        elif units:
+            return units.pop()
+        else:
+            return None
 
     @classmethod
     def current(cls):

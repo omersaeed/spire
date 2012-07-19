@@ -18,3 +18,4 @@ class SpireTask(Task):
             raise TaskError("configuration file '%s' does not exist" % config)
 
         self.driver = Driver(str(config))
+        self.driver.deploy()

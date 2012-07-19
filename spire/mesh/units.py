@@ -17,17 +17,33 @@ ContextLocal = ContextLocals.declare('mesh.context')
 
 class MeshClient(Unit):
     configuration = Configuration({
+        'bundle': ObjectReference(nonnull=True),
         'client': ObjectReference(nonnull=True, required=True, default=HttpClient),
-        'specification': ObjectReference(nonnull=True, required=True),
+        'name': Text(nonempty=True),
+        'specification': ObjectReference(nonnull=True),
         'url': Text(nonempty=True),
+        'version': Text(nonempty=True),
     })
 
-    def __init__(self, client, specification, url):
+    def __init__(self, client, url):
+        specification = self.configuration.get('specification')
+        if not specification:
+            bundle = self.configuration.get('bundle')
+            if bundle:
+                specification = bundle.specify(self.configuration['version'])
+            else:
+                raise Exception()
+
+        print 'HERE'
+
         self.instance = client(url, specification, self._construct_context,
             context_header_prefix=CONTEXT_HEADER_PREFIX).register()
 
     def execute(self, *args, **params):
         return self.instance.execute(*args, **params)
+
+    def prepare(self, *args, **params):
+        return self.instance.prepare(*args, **params)
 
     def _construct_context(self):
         context = ContextLocal.get()
@@ -68,6 +84,9 @@ class MeshDependency(Dependency):
             unit = unit or MeshClient
 
         super(MeshDependency, self).__init__(unit, token, optional, deferred, **params)
+
+    def contribute_params(self):
+        return {'name': self.name, 'version': self.version}
 
 class MeshServer(Mount):
     configuration = Configuration({
