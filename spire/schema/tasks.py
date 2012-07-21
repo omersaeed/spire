@@ -43,6 +43,7 @@ class DeploySchema(SpireTask):
     name = 'spire.schema.deploy'
     description = 'deploys a spire schema'
     parameters = {
+        'drop': Boolean(default=False),
         'schema': Text(nonempty=True),
     }
 
@@ -50,6 +51,10 @@ class DeploySchema(SpireTask):
         from spire.schema import Schema
         name = self['schema']
         interface = Schema.interface(name)
+
+        if self['drop']:
+            runtime.report('dropping schema %r' % name)
+            interface.drop_schema()
 
         runtime.report('deploying schema %r' % name)
         interface.deploy_schema()
