@@ -131,6 +131,7 @@ class ModelController(Unit, Controller):
         if subject:
             self.update(request, response, subject, data)
         else:
+            data['id'] = request.subject
             self.create(request, response, subject, data)
 
     def query(self, request, response, subject, data):

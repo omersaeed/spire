@@ -25,7 +25,7 @@ class AttributeValidator(object):
             if column.nullable:
                 return value
             else:
-                raise ValueError()
+                raise ValueError(repr(self.column))
         else:
             return column.type.validate(instance, column, value) or value
 
