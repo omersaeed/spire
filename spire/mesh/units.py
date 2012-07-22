@@ -34,8 +34,6 @@ class MeshClient(Unit):
             else:
                 raise Exception()
 
-        print 'HERE'
-
         self.instance = client(url, specification, self._construct_context,
             context_header_prefix=CONTEXT_HEADER_PREFIX).register()
 
