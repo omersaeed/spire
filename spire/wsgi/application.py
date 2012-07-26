@@ -131,6 +131,8 @@ class Application(Mount):
                     response = call_with_supported_params(view, request, **request.params)
                     if not isinstance(response, Response):
                         response = Response(response)
+                except HttpException:
+                    raise
                 except Exception, exception:
                     for mediator in reversed(mediators):
                         response = mediator.mediate_exception(request, exception)

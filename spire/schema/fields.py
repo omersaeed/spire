@@ -53,7 +53,7 @@ class DateType(TypeDecorator, ValidatesMinMax):
 class DateTimeType(TypeDecorator, ValidatesMinMax):
     impl = types.DateTime
 
-    def __init__(self, minimum=None, maximum=None, timezone=None):
+    def __init__(self, minimum=None, maximum=None, timezone=False):
         super(DateTimeType, self).__init__(timezone=timezone)
         self.minimum = minimum
         self.maximum = maximum
