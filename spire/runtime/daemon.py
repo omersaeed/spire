@@ -1,23 +1,24 @@
 from scheme import *
 from scheme.supplemental import ObjectReference
 
-from spire.drivers.driver import Driver
+from spire.runtime.runtime import Runtime
 from spire.support.daemon import *
 
-Schema = Structure({
+SCHEMA = Structure({
     'detached': Boolean(default=True),
     'gid': Text(nonnull=True),
     'pidfile': Text(nonnull=True),
     'uid': Text(nonnull=True),
 })
 
-class Driver(Driver):
+class Runtime(Runtime):
     def __init__(self, configuration=None, assembly=None, **params):
-        super(Driver, self).__init__(configuration, assembly)
+        super(Runtime, self).__init__(configuration, assembly)
         self.deploy()
+        self.startup()
 
         configuration = self.configuration.get('daemon') or {}
-        configuration = Schema.process(configuration, serialized=True)
+        configuration = SCHEMA.process(configuration, serialized=True)
 
         for attr, value in params.iteritems():
             if value is not None:

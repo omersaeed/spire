@@ -4,8 +4,24 @@ from pprint import pformat
 from bake import *
 from scheme import *
 
+from spire.runtime import current_runtime
 from spire.support.task import SpireTask
 from spire.schema.tasks import *
+
+class DeployComponent(SpireTask):
+    name = 'spire.component.deploy'
+    description = 'deploys a spire component'
+    parameters = {
+        'component': Text(nonempty=True),
+    }
+    
+    def run(self, runtime):
+        try:
+            component = self.runtime.components[self['component']]
+        except KeyError:
+            raise TaskError('invalid component')
+        else:
+            component.deploy()
 
 class DumpConfiguration(SpireTask):
     name = 'spire.dump-configuration'
@@ -24,8 +40,8 @@ class StartDaemon(Task):
     }
 
     def run(self, runtime):
-        from spire.drivers.daemon import Driver
-        Driver(self['config'], detached=self['detached'])
+        from spire.runtime.daemon import Runtime
+        Runtime(self['config'], detached=self['detached'])
 
 class StartShell(Task):
     name = 'spire.shell'
@@ -35,7 +51,7 @@ class StartShell(Task):
         'ipython': Boolean(description='use ipython if available', default=True),
     }
 
-    IPYTHON_CODE = '''"from spire.drivers.shell import Driver;Driver().configure('%s').deploy()"'''
+    IPYTHON_CODE = '''"from spire.runtime.shell import Runtime;Runtime().configure('%s').deploy()"'''
 
     def run(self, runtime):
         ipython = self['ipython']
@@ -48,7 +64,7 @@ class StartShell(Task):
         if ipython:
             os.execvp('ipython', ['ipython', '-i', '-c', self.IPYTHON_CODE % self['config']])
         else:
-            os.execvp('python', ['python', '-i', '-m', 'spire.drivers.shell', self['config']])
+            os.execvp('python', ['python', '-i', '-m', 'spire.runtime.shell', self['config']])
 
 class StartWsgiServer(Task):
     name = 'spire.wsgi'
@@ -59,5 +75,5 @@ class StartWsgiServer(Task):
     }
 
     def run(self, runtime):
-        from spire.drivers.wsgi import Driver
-        Driver(self['address'], self['config'])
+        from spire.runtime.wsgi import Runtime
+        Runtime(self['address'], self['config'])

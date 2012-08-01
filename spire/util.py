@@ -2,6 +2,7 @@ import os
 import re
 import sys
 from inspect import getargspec, stack
+from traceback import extract_stack
 from types import ModuleType
 from uuid import uuid4
 
@@ -11,6 +12,16 @@ def call_with_supported_params(callable, *args, **params):
         if key not in arguments:
             del params[key]
     return callable(*args, **params)
+
+def dump_threads():
+    lines = []
+    for id, stack in sys._current_frames().items():
+        lines.append('Thread: %s' % id)
+        for filename, lineno, name, line in extract_stack(stack):
+            lines.append('  File "%s", line %d, in %s' % (filename, lineno, name))
+            if line:
+                lines.append('    %s' % line.strip())
+    return '\n'.join(lines)
 
 def enumerate_modules(package, import_modules=False):
     path = get_package_path(package)
