@@ -1,10 +1,12 @@
 from glob import glob
 from threading import Lock
+from time import sleep
 
 from scheme import Format, Sequence, Structure
 from scheme.supplemental import ObjectReference
 
 from spire.core import Assembly
+from spire.exceptions import TemporaryStartupError
 from spire.support.logs import LogHelper, configure_logging
 from spire.util import recursive_merge
 
@@ -70,7 +72,21 @@ class Runtime(object):
         for component in self.components.itervalues():
             if hasattr(component, 'startup'):
                 log('info', 'initiating startup of component %s', component.identity)
-                component.startup()
+                for _ in range(12):
+                    try:
+                        component.startup()
+                    except TemporaryStartupError:
+                        log('info', 'startup of component %s delayed', component.identity)
+                        sleep(5)
+                    except Exception:
+                        log('exception', 'startup of component %s raised exception',
+                            component.identity)
+                        break
+                    else:
+                        log('info', 'startup of component %s succeeded', component.identity)
+                        break
+                else:
+                    log('error', 'startup of component %s failed', component.identity)
 
 def current_runtime():
     return Runtime.runtime

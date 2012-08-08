@@ -43,6 +43,9 @@ class MeshClient(Unit):
     def prepare(self, *args, **params):
         return self.instance.prepare(*args, **params)
 
+    def ping(self):
+        return self.instance.ping()
+
     def _construct_context(self):
         context = ContextLocal.get()
         if context:
