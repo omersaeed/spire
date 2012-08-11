@@ -5,9 +5,12 @@ from spire.core.configuration import Configuration
 from spire.core.dependency import Dependency
 from spire.core.registry import Configurable, Registry
 from spire.exceptions import *
+from spire.support.logs import LogHelper
 from spire.util import get_constructor_args, identify_object
 
 __all__ = ('Component', 'ConfigurableUnit', 'Unit')
+
+log = LogHelper('spire.core')
 
 class UnitMeta(type):
     def __new__(metatype, name, bases, namespace):
@@ -104,8 +107,8 @@ class UnitMeta(type):
         unit.__identity__ = identity
         unit.__token__ = token
 
-        print 'INSTANTIATING %s: assembly=%r, token=%r, identity=%r' % (cls.identity,
-            assembly, token, identity)
+        log('debug', 'instantiating unit %s: token=%r, identity=%r',
+            cls.identity, token, identity)
 
         if cls.configuration:
             configuration = cls.configuration.get(unit)

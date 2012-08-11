@@ -2,9 +2,12 @@ from threading import RLock, local
 
 from spire.core.registry import Registry
 from spire.exceptions import *
+from spire.support.logs import LogHelper
 from spire.util import import_object, recursive_merge
 
 __all__ = ('Assembly', 'adhoc_configure', 'get_unit')
+
+log = LogHelper('spire.core')
 
 class Local(local):
     assembly = None

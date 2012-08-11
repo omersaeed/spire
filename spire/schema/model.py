@@ -153,7 +153,7 @@ class ModelBase(object):
         else:
             raise ValueError(identity)
 
-    def update_with_mapping(self, mapping=None, **params):
+    def update_with_mapping(self, mapping=None, attrs=None, **params):
         if mapping:
             for attr, value in mapping.iteritems():
                 if attr not in params:
@@ -161,6 +161,8 @@ class ModelBase(object):
 
         cls = type(self)
         for attr, value in params.iteritems():
+            if attrs and attr not in attrs:
+                continue
             if isinstance(getattr(cls, attr, None), InstrumentedAttribute):
                 setattr(self, attr, value)
 

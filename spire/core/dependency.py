@@ -119,4 +119,3 @@ class Dependency(object):
     @classmethod
     def register(cls, *args, **params):
         Registry.register_dependency(cls(*args, **params))
-        

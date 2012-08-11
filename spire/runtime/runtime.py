@@ -2,7 +2,7 @@ from glob import glob
 from threading import Lock
 from time import sleep
 
-from scheme import Format, Sequence, Structure
+from scheme import Format, Integer, Sequence, Structure
 from scheme.supplemental import ObjectReference
 
 from spire.core import Assembly
@@ -10,7 +10,11 @@ from spire.exceptions import TemporaryStartupError
 from spire.support.logs import LogHelper, configure_logging
 from spire.util import recursive_merge
 
-COMPONENTS = Sequence(ObjectReference(nonnull=True), unique=True)
+COMPONENTS_SCHEMA = Sequence(ObjectReference(nonnull=True), unique=True)
+PARAMETERS_SCHEMA = Structure({
+    'startup_attempts': Integer(default=12),
+    'startup_timeout': Integer(default=5),
+})
 
 log = LogHelper('spire.runtime')
 
@@ -32,6 +36,7 @@ class Runtime(object):
         self.assembly = assembly or Assembly.current()
         self.components = {}
         self.configuration = {}
+        self.parameters = {}
 
         if configuration:
             self.configure(configuration)
@@ -56,9 +61,12 @@ class Runtime(object):
         if 'logging' in configuration:
             configure_logging(configuration['logging'])
 
+        parameters = configuration.get('spire') or {}
+        self.parameters = PARAMETERS_SCHEMA.process(parameters)
+
         components = configuration.get('components')
         if components:
-            components = COMPONENTS.process(components, serialized=True)
+            components = COMPONENTS_SCHEMA.process(components, serialized=True)
 
         config = configuration.get('configuration')
         if config:
@@ -69,24 +77,29 @@ class Runtime(object):
         return self
 
     def startup(self):
+        attempts = self.parameters['startup_attempts']
+        timeout = self.parameters['startup_timeout']
+
         for component in self.components.itervalues():
-            if hasattr(component, 'startup'):
-                log('info', 'initiating startup of component %s', component.identity)
-                for _ in range(12):
-                    try:
-                        component.startup()
-                    except TemporaryStartupError:
-                        log('info', 'startup of component %s delayed', component.identity)
-                        sleep(5)
-                    except Exception:
-                        log('exception', 'startup of component %s raised exception',
-                            component.identity)
-                        break
-                    else:
-                        log('info', 'startup of component %s succeeded', component.identity)
-                        break
+            if not hasattr(component, 'startup'):
+                continue
+
+            log('info', 'initiating startup of component %s', component.identity)
+            for _ in range(attempts - 1):
+                try:
+                    component.startup()
+                except TemporaryStartupError:
+                    log('warning', 'startup of component %s delayed', component.identity)
+                    sleep(timeout)
+                except Exception:
+                    log('exception', 'startup of component %s raised exception',
+                        component.identity)
+                    break
                 else:
-                    log('error', 'startup of component %s failed', component.identity)
+                    log('info', 'startup of component %s completed', component.identity)
+                    break
+            else:
+                log('error', 'startup of component %s timed out', component.identity)
 
 def current_runtime():
     return Runtime.runtime
