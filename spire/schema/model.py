@@ -140,7 +140,7 @@ class ModelBase(object):
     @classmethod
     def polymorphic_create(cls, data):
         column = cls.__mapper__.polymorphic_on
-        if column is None:
+        if column is None or cls.__mapper__.polymorphic_identity:
             return cls(**data)
 
         identity = data.get(column.name)
