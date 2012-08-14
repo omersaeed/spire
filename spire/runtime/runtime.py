@@ -2,7 +2,7 @@ from glob import glob
 from threading import Lock
 from time import sleep
 
-from scheme import Format, Integer, Sequence, Structure
+from scheme import Boolean, Format, Integer, Sequence, Structure
 from scheme.supplemental import ObjectReference
 
 from spire.core import Assembly
@@ -13,6 +13,7 @@ from spire.util import recursive_merge
 COMPONENTS_SCHEMA = Sequence(ObjectReference(nonnull=True), unique=True)
 PARAMETERS_SCHEMA = Structure({
     'startup_attempts': Integer(default=12),
+    'startup_enabled': Boolean(default=True),
     'startup_timeout': Integer(default=5),
 })
 
@@ -77,6 +78,10 @@ class Runtime(object):
         return self
 
     def startup(self):
+        if not self.parameters['startup_enabled']:
+            log('warning', 'skipping startup of components')
+            return
+
         attempts = self.parameters['startup_attempts']
         timeout = self.parameters['startup_timeout']
 

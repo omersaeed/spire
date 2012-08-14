@@ -5,7 +5,7 @@ import sys
 
 from spire.runtime.runtime import Runtime
 from spire.util import dump_threads
-from spire.wsgi.util import Dispatcher, Mount
+from spire.wsgi.util import Mount, MountDispatcher
 
 THREAD_DUMP_TRIGGER = '/tmp/uwsgi-dump-threads'
 THREAD_DUMP_SIGNAL = 17
@@ -29,9 +29,9 @@ class Runtime(Runtime):
         self.deploy()
         self.startup()
 
-        self.dispatcher = Dispatcher()
+        self.dispatcher = MountDispatcher()
         for unit in self.assembly.collate(Mount):
-            self.dispatcher.mount(unit.configuration['path'], unit)
+            self.dispatcher.mount(unit)
 
         self.register_thread_dumper()
 

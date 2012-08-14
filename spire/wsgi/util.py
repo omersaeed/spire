@@ -1,13 +1,17 @@
-from scheme import Sequence, Text
+from scheme import Boolean, Sequence, Text
 from werkzeug.exceptions import InternalServerError, NotFound
 
-from spire.local import ContextLocals
 from spire.core import Configuration, Unit
+from spire.local import ContextLocals
+from spire.support.logs import LogHelper
+
+log = LogHelper('spire.wsgi')
 
 class Mount(Unit):
     configuration = Configuration({
         'middleware': Sequence(Text(nonempty=True), unique=True),
         'path': Text(description='url path', nonempty=True),
+        'shared_path': Text(description='path segment shared with mount'),
     })
 
     def __init__(self):
@@ -20,6 +24,18 @@ class Mount(Unit):
         if middleware:
             for attr in reversed(middleware):
                 self.application = getattr(self, attr).wrap(self.application)
+
+        self.path = '/' + self.configuration['path'].strip('/')
+        self.shared_path = self.configuration.get('shared_path') or ''
+
+        self.unshared_path = self.path
+        if self.shared_path:
+            self.shared_path = '/' + self.shared_path.strip('/')
+            length = len(self.shared_path)
+            if self.path[-length:] == self.shared_path:
+                self.unshared_path = self.path[:-length]
+            else:
+                self.shared_path = ''
 
     def __call__(self, environ, start_response):
         try:
@@ -45,12 +61,12 @@ class Middleware(object):
     def wrap(self, application):
         return MiddlewareWrapper(self, application)
 
-class Dispatcher(object):
+class MountDispatcher(object):
     def __init__(self, mounts=None):
         self.mounts = {}
         if mounts:
             for mount in mounts:
-                self.mount(*mount)
+                self.mount(mount)
 
     def dispatch(self, environ, start_response):
         script = environ.get('PATH_INFO', '')
@@ -58,25 +74,29 @@ class Dispatcher(object):
 
         mounts = self.mounts
         while '/' in script:
-            if script in mounts:
-                application = mounts[script]
-                break
-            else:
+            try:
+                mount = mounts[script]
+            except KeyError:
                 segments = script.split('/')
                 script = '/'.join(segments[:-1])
                 pathinfo = '/%s%s' % (segments[-1], pathinfo)
+            else:
+                break
         else:
-            application = mounts.get(script or '/')
-            if not application:
+            try:
+                mount = mounts['/']
+            except KeyError:
                 return NotFound()(environ, start_response)
 
-        environ['SCRIPT_NAME'] = environ.get('SCRIPT_NAME', '') + script
-        environ['PATH_INFO'] = pathinfo
-        return application(environ, start_response)
+        environ['SCRIPT_NAME'] = environ.get('SCRIPT_NAME', '') + mount.unshared_path
+        environ['PATH_INFO'] = mount.shared_path + pathinfo
+        return mount(environ, start_response)
 
     __call__ = dispatch
 
-    def mount(self, path, application):
-        path = '/' + path.strip('/')
+    def mount(self, mount):
+        path = mount.path
         if path not in self.mounts:
-            self.mounts[path] = application
+            self.mounts[path] = mount
+        else:
+            log('warning', 'mount %r declares duplicate path %r', mount, path)

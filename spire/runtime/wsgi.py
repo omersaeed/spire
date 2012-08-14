@@ -5,7 +5,7 @@ from werkzeug.wsgi import SharedDataMiddleware
 
 from spire.runtime.runtime import Runtime
 from spire.wsgi.server import WsgiServer
-from spire.wsgi.util import Dispatcher, Mount
+from spire.wsgi.util import Mount, MountDispatcher
 
 class Runtime(Runtime):
     def __init__(self, address, configuration=None, assembly=None):
@@ -13,9 +13,9 @@ class Runtime(Runtime):
         self.deploy()
         self.startup()
 
-        self.dispatcher = Dispatcher()
+        self.dispatcher = MountDispatcher()
         for unit in self.assembly.collate(Mount):
-            self.dispatcher.mount(unit.configuration['path'], unit)
+            self.dispatcher.mount(unit)
 
         wsgi = self.configuration.get('wsgi')
         if wsgi and 'static-map' in wsgi:
