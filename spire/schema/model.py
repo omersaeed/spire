@@ -121,7 +121,7 @@ class ModelBase(object):
     def session(self):
         return object_session(self)
 
-    def extract_dict(self, attrs=None, exclude=None, **value):
+    def extract_dict(self, attrs=None, exclude=None, drop_none=False, **extraction):
         if not attrs:
             attrs = [column.name for column in self.__mapper__.columns]
         if isinstance(attrs, (tuple, list)):
@@ -134,8 +134,11 @@ class ModelBase(object):
                 attrs.pop(attr, None)
 
         for attr, name in attrs.iteritems():
-            value[name] = getattr(self, attr)
-        return value
+            value = getattr(self, attr)
+            if not (drop_none and value is None):
+                extraction[name] = value
+        
+        return extraction
 
     @classmethod
     def polymorphic_create(cls, data):
