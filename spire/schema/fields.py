@@ -33,11 +33,11 @@ class ValidatesMinMax(object):
     def validate(self, instance, column, value):
         minimum = self.minimum
         if minimum is not None and value < minimum:
-            raise ValueError()
+            raise ValueError('%r is less then %r (minimum)' % (value, minimum))
 
         maximum = self.maximum
         if maximum is not None and value > maximum:
-            raise ValueError()
+            raise ValueError('%r is greater then %r (maximum)' % (value, maximum))
 
 class BooleanType(types.Boolean):
     pass
@@ -80,7 +80,7 @@ class EnumerationType(TypeDecorator):
         if value in self.enumeration:
             return value
         else:
-            raise ValueError()
+            raise ValueError('%r is not a valid value for this enumeration' % value)
 
 class FloatType(TypeDecorator, ValidatesMinMax):
     impl = types.Float
@@ -122,15 +122,15 @@ class TextType(TypeDecorator):
 
     def validate(self, instance, column, value):
         if self.pattern and not self.pattern.match(value):
-            raise ValueError()
+            raise ValueError('%r does not match the pattern for this field' % value)
 
         min_length = self.min_length
         if min_length is not None and len(value) < min_length:
-            raise ValueError()
+            raise ValueError('value is too short')
 
         max_length = self.max_length
         if max_length is not None and len(value) > max_length:
-            raise ValueError()
+            raise ValueError('value is too long')
 
 class TimeType(TypeDecorator, ValidatesMinMax):
     impl = types.Time
@@ -150,11 +150,11 @@ class TokenType(TypeDecorator):
 
     def validate(self, instance, column, value):
         if not self.pattern.match(value):
-            raise ValueError()
+            raise ValueError('%r is not a valid token' % value)
 
         segments = self.segments
         if segments is not None and value.count(':') + 1 != segments:
-            raise ValueError()
+            raise ValueError('%r does not have exactly %r segments' % (value, segments))
 
 class EmailType(TextType):
     pattern = re.compile(
