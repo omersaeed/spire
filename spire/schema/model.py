@@ -141,6 +141,13 @@ class ModelBase(object):
         return extraction
 
     @classmethod
+    def load(cls, session, lockmode=None, **filters):
+        query = session.query(cls).filter_by(**filters)
+        if lockmode:
+            query = query.with_lockmode(lockmode)
+        return query.one()
+
+    @classmethod
     def polymorphic_create(cls, data):
         column = cls.__mapper__.polymorphic_on
         if column is None or cls.__mapper__.polymorphic_identity:
