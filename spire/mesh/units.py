@@ -21,11 +21,12 @@ class MeshClient(Unit):
         'client': ObjectReference(nonnull=True, required=True, default=HttpClient),
         'name': Text(nonempty=True),
         'specification': ObjectReference(nonnull=True),
+        'timeout': Integer(default=120),
         'url': Text(nonempty=True),
         'version': Text(nonempty=True),
     })
 
-    def __init__(self, client, url):
+    def __init__(self, client, url, timeout):
         specification = self.configuration.get('specification')
         if not specification:
             bundle = self.configuration.get('bundle')
@@ -35,7 +36,7 @@ class MeshClient(Unit):
                 raise Exception()
 
         self.instance = client(url, specification, self._construct_context,
-            context_header_prefix=CONTEXT_HEADER_PREFIX).register()
+            context_header_prefix=CONTEXT_HEADER_PREFIX, timeout=timeout).register()
 
     def execute(self, *args, **params):
         return self.instance.execute(*args, **params)
@@ -57,12 +58,13 @@ class MeshClient(Unit):
 
 class MeshProxy(Mount):
     configuration = Configuration({
+        'timeout': Integer(default=120),
         'url': Text(nonempty=True),
     })
 
-    def __init__(self, url):
+    def __init__(self, url, timeout):
         self.application = HttpProxy(url, self._construct_context, context_key='request.context',
-            context_header_prefix=CONTEXT_HEADER_PREFIX)
+            context_header_prefix=CONTEXT_HEADER_PREFIX, timeout=timeout)
         super(MeshProxy, self).__init__()
 
     def _construct_context(self):
