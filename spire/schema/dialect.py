@@ -4,8 +4,9 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.engine.url import make_url
 
 class Dialect(object):
-    def __init__(self, dialect):
+    def __init__(self, dialect, hstore=False):
         self.dialect = dialect
+        self.hstore = hstore
 
     def create_database(self, url, name, conditional=True, **params):
         pass
@@ -41,7 +42,16 @@ class PostgresqlDialect(Dialect):
             sql += ' owner %s' % validate_sql_identifier(owner)
 
         self._execute_statement(url, sql)
+        if self.hstore:
+            url = '%s/%s' % (url.rsplit('/', 1)[0], name)
+            self._execute_statement(url, 'create extension hstore')
 
+    def create_engine(self, url, schema, echo=False):
+        engine = create_engine(url, echo=echo)
+        if self.hstore:
+            self._register_hstore_converter(engine)
+        return engine
+        
     def create_role(self, url, name, login=True, superuser=False):
         sql = ['create role %s' % validate_sql_identifier(name)]
         if login:
@@ -110,6 +120,11 @@ class PostgresqlDialect(Dialect):
         connection.autocommit = autocommit
         return connection
 
+    def _register_hstore_converter(self, engine):
+        from psycopg2.extras import register_hstore
+        connection = engine.connect()
+        register_hstore(connection.connection, globally=True)
+
 class SqliteDialect(Dialect):
     def create_engine(self, url, schema, echo=False):
         engine = create_engine(url, echo=echo)
@@ -129,10 +144,10 @@ DIALECTS = {
     ('sqlite', 'pysqlite'): SqliteDialect,
 }
 
-def get_dialect(url):
+def get_dialect(url, **params):
     dialect = make_url(url).get_dialect()
     implementation = DIALECTS[(dialect.name, dialect.driver)]
-    return implementation(dialect)
+    return implementation(dialect, **params)
 
 def validate_sql_identifier(value):
     if re.match(r'^[_a-zA-Z][_a-zA-Z0-9]*$', value):

@@ -3,7 +3,7 @@ import re
 
 from sqlalchemy import Column, ForeignKey as _ForeignKey, types
 from sqlalchemy.ext.mutable import Mutable
-from sqlalchemy.types import TypeDecorator
+from sqlalchemy.types import TypeDecorator, UserDefinedType
 
 from spire.util import uniqid
 
@@ -89,6 +89,10 @@ class FloatType(TypeDecorator, ValidatesMinMax):
         super(FloatType, self).__init__()
         self.minimum = minimum
         self.maximum = maximum
+
+class HstoreType(UserDefinedType):
+    def get_col_spec(self):
+        return 'hstore'
 
 class IntegerType(TypeDecorator, ValidatesMinMax):
     impl = types.Integer
@@ -196,6 +200,9 @@ def ForeignKey(column, **params):
             column_params[name] = params.pop(name)
 
     return Column(_ForeignKey(column, **params), **column_params)
+
+def Hstore(**params):
+    return Column(HstoreType(), **params)
 
 def Identifier(**params):
     return Column(UUIDType(), nullable=False, primary_key=True, default=uniqid, **params)

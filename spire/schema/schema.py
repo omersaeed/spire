@@ -53,6 +53,7 @@ class SchemaInterface(Unit):
     configuration = Configuration({
         'admin_url': Text(nonnull=True),
         'echo': Boolean(default=False),
+        'hstore': Boolean(default=False),
         'migrations': Text(nonnull=True),
         'schema': Text(nonempty=True),
         'url': Text(nonempty=True),
@@ -62,8 +63,10 @@ class SchemaInterface(Unit):
         if isinstance(schema, basestring):
             schema = Schema.schemas[schema]
 
+        params = {'hstore': self.configuration.get('hstore', False)}
+        self.dialect = get_dialect(url, **params)
+
         self.cache = {}
-        self.dialect = get_dialect(url)
         self.guard = Lock()
         self.schema = schema
         self.url = url
