@@ -4,6 +4,9 @@ import sys
 from inspect import getargspec, stack
 from traceback import extract_stack
 from types import ModuleType
+from urllib import urlencode
+from urllib2 import urlopen
+from urlparse import urlparse, urlunparse
 from uuid import uuid4
 
 def call_with_supported_params(callable, *args, **params):
@@ -138,6 +141,18 @@ PLURALIZATION_RULES = (
     (re.compile(r'[^aeioudgkprt]h$'), re.compile(r'$'), 'es'),
     (re.compile(r'(qu|[^aeiou])y$'), re.compile(r'y$'), 'ies'),
 )
+
+def get_url(url, **params):
+    if params:
+        params = urlencode(params)
+        segments = list(urlparse(url))
+        if segments[4]:
+            segments[4] += '&' + params
+        else:
+            segments[4] = params
+        url = urlunparse(segments)
+
+    return urlopen(url)
 
 def pluralize(word, quantity=None, rules=PLURALIZATION_RULES):
     if quantity == 1: 
