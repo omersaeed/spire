@@ -122,8 +122,13 @@ class PostgresqlDialect(Dialect):
 
     def _register_hstore_converter(self, engine):
         from psycopg2.extras import register_hstore
+        from psycopg2 import ProgrammingError
+
         connection = engine.connect()
-        register_hstore(connection.connection, globally=True)
+        try:
+            register_hstore(connection.connection, globally=True)
+        except ProgrammingError:
+            pass
 
 class SqliteDialect(Dialect):
     def create_engine(self, url, schema, echo=False):
