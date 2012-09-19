@@ -93,7 +93,7 @@ class ModelMeta(DeclarativeMeta):
                 if default.is_scalar:
                     setattr(instance, column.name, default.arg)
                 elif default.is_callable:
-                    setattr(instance, column.name, default.arg(None))
+                    setattr(instance, column.name, default.arg())
 
         return instance
 
