@@ -76,20 +76,20 @@ class ContextLocalManager(object):
             return default
 
     def push(self, token, value, finalizer=None):
-        log.debug('pushing value %r onto stack %r' % (value, token))
+        #log.debug('pushing value %r onto stack %r' % (value, token))
         self.locals[token].push((value, finalizer))
         return value
 
     def pop(self, token):
         value, finalizer = self.locals[token].pop()
-        log.debug('popping value %r off stack %r' % (value, token))
+        #log.debug('popping value %r off stack %r' % (value, token))
         if finalizer:
-            log.debug('running finalizer for %r off stack %r' % (value, token))
+            #log.debug('running finalizer for %r off stack %r' % (value, token))
             finalizer()
         return value
 
     def purge(self):
-        log.debug('purging context locals')
+        #log.debug('purging context locals')
         for stack in self.locals.itervalues():
             while stack.top is not None:
                 value, finalizer = stack.pop()

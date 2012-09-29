@@ -1,1 +1,1 @@
-from spire.runtime.runtime import current_runtime
+from spire.runtime.runtime import current_runtime, onstartup

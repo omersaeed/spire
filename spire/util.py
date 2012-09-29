@@ -35,9 +35,30 @@ def enumerate_modules(package, import_modules=False):
                 module = import_object(module)
             yield module
 
-def get_constructor_args(cls, ignore_private=True, cache={}):
+def enumerate_tagged_methods(instance, tag, expected_value=None):
+    """Enumerates all methods of instance which has an attribute named tag."""
+
+    methods = []
+    for attr in dir(instance):
+        value = getattr(instance, attr)
+        if callable(value):
+            try:
+                tagged_value = getattr(value, tag)
+            except AttributeError:
+                continue
+            if expected_value is None or tagged_value == expected_value:
+                methods.append(value)
+    else:
+        return methods
+
+def get_constructor_args(cls, ignore_private=True, _cache={}):
+    """Identifies the named arguments of the constructor of ``cls``.
+
+    :param boolean ignore_private: Optional, default is ``True``.
+    """
+
     try:
-        return cache[cls]
+        return _cache[cls]
     except KeyError:
         pass
 
@@ -51,7 +72,7 @@ def get_constructor_args(cls, ignore_private=True, cache={}):
     if ignore_private:
         arguments = [value for value in arguments if value[0] != '_']
 
-    cache[cls] = arguments
+    _cache[cls] = arguments
     return arguments
 
 def get_package_data(module, path=None):
@@ -172,6 +193,10 @@ def pruned(mapping, *keys):
     return pruned
 
 def recursive_merge(original, addition):
+    """Merge the content of ``addition`` into ``original``, recursing when
+    both arguments have a dictionary for the same key.
+    """
+
     for key, value in addition.iteritems():
         if key in original:
             source = original[key]
@@ -195,6 +220,41 @@ def slugify(value, spacer='-', lowercase=True):
     if lowercase:
         value = value.lower()
     return SPACER_EXPR.sub(spacer, value)
+
+def topological_sort(graph):
+    """Conducts a topological sort of a directed acyclic graph and returns
+    the sorted nodes as a ``list``.
+
+    :param dict graph: The graph to sort, which must be a ``dict`` mapping
+        each node to a ``set`` containing that node's edges (which are 
+        other nodes present in the graph). This argument is modified during
+        the sort and should be discarded afterward.
+    """
+
+    queue = []
+    edges = graph.values()
+
+    for node in graph.iterkeys():
+        for edge in edges:
+            if node in edge:
+                break
+        else:
+            queue.append(node)
+
+    result = []
+    while queue:
+        node = queue.pop(0)
+        result.append(node)
+        for target in graph[node].copy():
+            graph[node].remove(target)
+            for edge in graph.itervalues():
+                if target in edge:
+                    break
+            else:
+                queue.append(target)
+
+    result.reverse()
+    return result
 
 def trace_stack(indent=''):
     lines = []

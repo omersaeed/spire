@@ -8,7 +8,7 @@ from scheme.supplemental import ObjectReference
 from spire.core import Assembly
 from spire.exceptions import TemporaryStartupError
 from spire.support.logs import LogHelper, configure_logging
-from spire.util import recursive_merge
+from spire.util import enumerate_tagged_methods, recursive_merge, topological_sort
 
 COMPONENTS_SCHEMA = Sequence(ObjectReference(nonnull=True), unique=True)
 PARAMETERS_SCHEMA = Structure({
@@ -86,25 +86,56 @@ class Runtime(object):
         timeout = self.parameters['startup_timeout']
 
         for component in self.components.itervalues():
-            if not hasattr(component, 'startup'):
-                continue
+            methods = enumerate_tagged_methods(component, 'onstartup', True)
+            if methods:
+                log('info', 'initiating startup of %s', component.identity)
+                for method in self._sort_methods(methods):
+                    self._execute_startup_method(component, method, attempts, timeout)
+                log('info', 'finished startup of %s', component.identity)
 
-            log('info', 'initiating startup of component %s', component.identity)
-            for _ in range(attempts - 1):
-                try:
-                    component.startup()
-                except TemporaryStartupError:
-                    log('warning', 'startup of component %s delayed', component.identity)
-                    sleep(timeout)
-                except Exception:
-                    log('exception', 'startup of component %s raised exception',
-                        component.identity)
-                    break
-                else:
-                    log('info', 'startup of component %s completed', component.identity)
-                    break
+    def _execute_startup_method(self, component, method, attempts, timeout):
+        params = (method.__name__, component.identity)
+        log('info', 'executing %s for startup of %s' % params)
+
+        for _ in range(attempts - 1):
+            try:
+                method()
+            except TemporaryStartupError:
+                log('warning', 'execution of %s for startup of %s delayed' % params)
+                sleep(timeout)
+            except Exception:
+                log('exception', 'execution of %s for startup of %s raised exception' % params)
+                break
             else:
-                log('error', 'startup of component %s timed out', component.identity)
+                log('info', 'execution of %s for startup of %s completed' % params)
+                break
+        else:
+            log('error', 'execution of %s for startup of %s timed out' % params)
+
+    def _sort_methods(self, methods):
+        methods = dict((method.__name__, method) for method in methods)
+        graph = {}
+
+        for method in methods.itervalues():
+            edges = set()
+            for name in method.after:
+                if name in methods:
+                    edges.add(methods[name])
+            graph[method] = edges
+
+        return topological_sort(graph)
 
 def current_runtime():
     return Runtime.runtime
+
+def onstartup(after=None):
+    if isinstance(after, basestring):
+        after = after.split(' ') if after else None
+    if not after:
+        after = []
+
+    def decorator(method):
+        method.after = after
+        method.onstartup = True
+        return method
+    return decorator
