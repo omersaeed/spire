@@ -85,12 +85,6 @@ class SchemaInterface(Unit):
         engine, sessions = self._acquire_engine(tokens)
         self.schema.metadata.create_all(engine)
 
-        session = sessions()
-        for constructor in self.schema.constructors:
-            constructor(session)
-
-        session.close()
-
         migrations = self._get_migration_interface()
         if migrations and migrations.has_revisions:
             migrations.stamp()
@@ -100,12 +94,25 @@ class SchemaInterface(Unit):
         name = url.split('/')[-1]
 
         admin_url = self.configuration.get('admin_url')
-        if not self.dialect.is_database_present(admin_url, name):
-            return self.create_schema(**tokens)
+        if self.dialect.is_database_present(admin_url, name):
+            migrations = self._get_migration_interface()
+            if migrations and migrations.has_revisions:
+                migrations.upgrade()
+        else:
+            self.create_schema(**tokens)
 
-        migrations = self._get_migration_interface()
-        if migrations and migrations.has_revisions:
-            migrations.upgrade()
+        constructors = self.schema.constructors
+        if not constructors:
+            return
+
+        engine, sessions = self._acquire_engine(tokens)
+        session = sessions()
+
+        try:
+            for constructor in constructors:
+                constructor(session)
+        finally:
+            session.close()
 
     def drop_schema(self, **tokens):
         url = self._construct_url(tokens)
