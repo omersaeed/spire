@@ -2,6 +2,7 @@ import json
 import re
 
 from sqlalchemy import Column, ForeignKey as _ForeignKey, types
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.ext.mutable import Mutable
 from sqlalchemy.types import TypeDecorator, UserDefinedType
 
@@ -39,8 +40,8 @@ class ValidatesMinMax(object):
         if maximum is not None and value > maximum:
             raise ValueError('%r is greater then %r (maximum)' % (value, maximum))
 
-class BooleanType(types.Boolean):
-    pass
+ArrayType = ARRAY
+BooleanType = types.Boolean
 
 class DateType(TypeDecorator, ValidatesMinMax):
     impl = types.Date
@@ -171,6 +172,9 @@ class IPAddressType(TextType):
 
 class UUIDType(TextType):
     pattern = re.compile(r'^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$')
+
+def Array(item_type, as_tuple=False, **params):
+    return Column(ArrayType(item_type, as_tuple=as_tuple), **params)
 
 def Boolean(nullable=False, **params):
     return Column(BooleanType(), nullable=nullable, **params)

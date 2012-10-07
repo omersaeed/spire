@@ -39,3 +39,6 @@ class LogHelper(object):
             self.logger.exception(message, *args)
         else:
             self.logger.log(self.LEVELS[level], message, *args)
+
+    def enabled(self, level):
+        return self.logger.isEnabledFor(self.LEVELS[level])
