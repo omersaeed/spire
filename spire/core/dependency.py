@@ -107,12 +107,14 @@ class Dependency(object):
                 token = identity
 
         key = (token, identity, self.unit)
-        self.cache[instance] = assembly.acquire(key, self.instantiate, (assembly, token, identity))
+        self.cache[instance] = assembly.acquire(key, self.instantiate, (assembly, token, identity, instance))
         return self.cache[instance]
 
-    def instantiate(self, assembly, token, identity):
+    def instantiate(self, assembly, token, identity, parent):
         params = self.contribute_params()
         params.update(self.params)
+        if hasattr(parent, 'contribute_params'):
+            params.update(parent.contribute_params())
         return self.unit(__assembly__=assembly, __identity__=identity,
             __token__=token, **params)
 

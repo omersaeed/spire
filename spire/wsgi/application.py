@@ -93,8 +93,10 @@ class Application(Mount):
         if mediators:
             for mediator in mediators:
                 attr = getattr(self, mediator)
-                attr.application = self
                 self.mediators.append(attr)
+
+    def contribute_params(self):
+        return {'application': self}
 
     def dispatch(self, environ, start_response):
         try:
