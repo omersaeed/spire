@@ -44,7 +44,7 @@ class ModelMeta(DeclarativeMeta):
         if not meta:
             return DeclarativeMeta.__new__(metatype, name, bases, namespace)
         elif not isinstance(meta, dict):
-            meta = meta.__dict__
+            meta = dict(meta.__dict__)
 
         schema = meta.pop('schema')
         if not isinstance(schema, Schema):
