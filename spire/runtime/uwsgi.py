@@ -44,5 +44,8 @@ class Runtime(Runtime):
             lambda *args: sys.stdout.write('%s\n' % dump_threads()))
         uwsgi.add_file_monitor(THREAD_DUMP_SIGNAL, THREAD_DUMP_TRIGGER)
 
+    def reload(self):
+        uwsgi.reload()
+
 if uwsgi:
     uwsgi.applications = {'': Runtime()}

@@ -77,6 +77,9 @@ class Runtime(object):
             self.components[component.identity] = self.assembly.instantiate(component)
         return self
 
+    def reload(self):
+        pass
+
     def startup(self):
         if not self.parameters['startup_enabled']:
             log('warning', 'skipping startup of components')
