@@ -4,7 +4,9 @@ from mesh.standard import OperationError, ValidationError
 
 from scheme import Boolean, Text
 from scheme.supplemental import ObjectReference
-from sqlalchemy import MetaData, create_engine, event
+from sqlalchemy import MetaData, Table, create_engine, event
+from sqlalchemy.engine.reflection import Inspector
+from sqlalchemy.exc import NoSuchTableError
 from sqlalchemy.orm.session import sessionmaker
 
 from spire.core import *
@@ -125,6 +127,40 @@ class SchemaInterface(Unit):
     def drop_tables(self, **tokens):
         engine, sessions = self._acquire_engine(tokens)
         self.schema.metadata.drop_all(engine)
+
+    def create_or_update_table(self, table, **tokens):
+        engine = self.get_engine(**tokens)
+        inspector = Inspector.from_engine(engine)
+
+        try:
+            columns = {}
+            for column in inspector.get_columns(table.name):
+                columns[column['name']] = column
+        except NoSuchTableError:
+            table.create(engine)
+            return
+
+        additions = []
+        removals = []
+
+        for column in table.columns:
+            existing = columns.get(column.name)
+            if existing is not None:
+                if self.dialect.type_is_equivalent(column.type, existing['type']):
+                    continue
+                else:
+                    removals.append(column)
+            additions.append(column)
+
+        for name in columns:
+            if name not in table.columns:
+                removals.append(name)
+
+        if not additions and not removals:
+            return
+
+        sql = self.dialect.construct_alter_table(table.name, additions, removals)
+        engine.execute(sql)
 
     def get_engine(self, **tokens):
         engine, sessions = self._acquire_engine(tokens)

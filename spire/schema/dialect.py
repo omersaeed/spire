@@ -1,12 +1,16 @@
 import re
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import Column, create_engine, event
+from sqlalchemy.dialects.postgresql.base import ARRAY
 from sqlalchemy.engine.url import make_url
 
 class Dialect(object):
     def __init__(self, dialect, hstore=False):
         self.dialect = dialect
         self.hstore = hstore
+
+    def construct_alter_table(self, table, additions=None, removals=None):
+        raise NotImplementedError()
 
     def create_database(self, url, name, conditional=True, **params):
         pass
@@ -32,7 +36,24 @@ class Dialect(object):
     def is_database_present(self, url, name):
         return False
 
+    def type_is_equivalent(self, left, right):
+        return left._type_affinity is right._type_affinity
+
 class PostgresqlDialect(Dialect):
+    def construct_alter_table(self, table, additions=None, removals=None):
+        actions = []
+        if removals:
+            for column in removals:
+                if isinstance(column, Column):
+                    column = column.name
+                actions.append('drop %s' % validate_sql_identifier(column))
+        if additions:
+            for column in additions:
+                actions.append('add %s' % self._construct_column(column))
+
+        table = validate_sql_identifier(table)
+        return 'alter table %s %s' % (table, ', '.join(actions))
+
     def create_database(self, url, name, conditional=True, owner=None):
         if conditional and self.is_database_present(url, name):
             return
@@ -101,6 +122,21 @@ class PostgresqlDialect(Dialect):
 
         row = self._execute_statement(url, sql, True)
         return row[0] == 1
+
+    def type_is_equivalent(self, left, right):
+        if left._type_affinity is not right._type_affinity:
+            return False
+        if (left._type_affinity is ARRAY and left.item_type._type_affinity is not
+                right.item_type._type_affinity):
+            return False
+        return True
+
+    def _construct_column(self, column):
+        sql = [validate_sql_identifier(column.name), column.type.compile(self.dialect())]
+        if not column.nullable:
+            sql.append('not null')
+        
+        return ' '.join(sql)
 
     def _execute_statement(self, url, sql, result=False):
         if isinstance(sql, list):
