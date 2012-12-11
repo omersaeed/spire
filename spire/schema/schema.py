@@ -77,6 +77,19 @@ class SchemaInterface(Unit):
     def session(self):
         return self.get_session()
 
+    def create_or_update_table(self, table, **tokens):
+        engine = self.get_engine(**tokens)
+        try:
+            additions, removals = self._collate_column_changes(engine, table)
+            if not additions and not removals:
+                return
+        except NoSuchTableError:
+            table.create(engine)
+            return
+
+        sql = self.dialect.construct_alter_table(table.name, additions, removals)
+        engine.execute(sql)
+
     def create_schema(self, **tokens):
         url = self._construct_url(tokens)
         name = url.split('/')[-1]
@@ -128,41 +141,6 @@ class SchemaInterface(Unit):
         engine, sessions = self._acquire_engine(tokens)
         self.schema.metadata.drop_all(engine)
 
-    def create_or_update_table(self, table, **tokens):
-        engine = self.get_engine(**tokens)
-        inspector = Inspector.from_engine(engine)
-
-        try:
-            columns = {}
-            for column in inspector.get_columns(table.name):
-                columns[column['name']] = column
-        except NoSuchTableError:
-            table.create(engine)
-            return True
-
-        additions = []
-        removals = []
-
-        for column in table.columns:
-            existing = columns.get(column.name)
-            if existing is not None:
-                if self.dialect.type_is_equivalent(column.type, existing['type']):
-                    continue
-                else:
-                    removals.append(column)
-            additions.append(column)
-
-        for name in columns:
-            if name not in table.columns:
-                removals.append(name)
-
-        if not additions and not removals:
-            return False
-
-        sql = self.dialect.construct_alter_table(table.name, additions, removals)
-        engine.execute(sql)
-        return True
-
     def get_engine(self, **tokens):
         engine, sessions = self._acquire_engine(tokens)
         return engine
@@ -179,6 +157,14 @@ class SchemaInterface(Unit):
         engine, sessions = self._acquire_engine(tokens)
         session = sessions()
         return SessionLocals.push(self.schema.name, session, session.close)
+
+    def is_table_correct(self, table, **tokens):
+        engine = self.get_engine(**tokens)
+        try:
+            additions, removals = self._collate_column_changes(engine, table)
+            return (not additions and not removals)
+        except NoSuchTableError:
+            return False
 
     def _acquire_engine(self, tokens=None):
         url = self._construct_url(tokens)
@@ -197,6 +183,31 @@ class SchemaInterface(Unit):
             return engine, sessions
         finally:
             self.guard.release()
+
+    def _collate_column_changes(self, engine, table):
+        inspector = Inspector.from_engine(engine)
+
+        columns = {}
+        for column in Inspector.from_engine(engine).get_columns(table.name):
+            columns[column['name']] = column
+
+        additions = []
+        removals = []
+
+        for column in table.columns:
+            existing = columns.get(column.name)
+            if existing is not None:
+                if self.dialect.type_is_equivalent(column.type, existing['type']):
+                    continue
+                else:
+                    removals.append(column)
+            additions.append(column)
+
+        for name in columns:
+            if name not in table.columns:
+                removals.append(name)
+
+        return additions, removals
 
     def _construct_url(self, tokens=None):
         url = self.url

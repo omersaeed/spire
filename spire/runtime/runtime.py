@@ -26,12 +26,12 @@ class Runtime(object):
     runtime = None
 
     def __new__(cls, *args, **params):
-        with cls.guard:
-            if cls.runtime:
+        with Runtime.guard:
+            if Runtime.runtime:
                 raise Exception('runtime already instantiated')
 
-            cls.runtime = super(Runtime, cls).__new__(cls, *args, **params)
-            return cls.runtime
+            Runtime.runtime = super(Runtime, cls).__new__(cls, *args, **params)
+            return Runtime.runtime
 
     def __init__(self, configuration=None, assembly=None):
         self.assembly = assembly or Assembly.current()
