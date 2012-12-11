@@ -137,6 +137,10 @@ class SchemaInterface(Unit):
         if admin_url:
             self.dialect.drop_database(admin_url, name)
 
+    def drop_table(self, table, **tokens):
+        engine, sessions = self._acquire_engine(tokens)
+        table.drop(engine)
+
     def drop_tables(self, **tokens):
         engine, sessions = self._acquire_engine(tokens)
         self.schema.metadata.drop_all(engine)
@@ -165,6 +169,10 @@ class SchemaInterface(Unit):
             return (not additions and not removals)
         except NoSuchTableError:
             return False
+
+    def table_exists(self, table, **tokens):
+        engine, sessions = self._acquire_engine(tokens)
+        return table.exists(engine)
 
     def _acquire_engine(self, tokens=None):
         url = self._construct_url(tokens)
