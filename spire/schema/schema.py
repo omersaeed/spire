@@ -138,7 +138,7 @@ class SchemaInterface(Unit):
                 columns[column['name']] = column
         except NoSuchTableError:
             table.create(engine)
-            return
+            return True
 
         additions = []
         removals = []
@@ -157,10 +157,11 @@ class SchemaInterface(Unit):
                 removals.append(name)
 
         if not additions and not removals:
-            return
+            return False
 
         sql = self.dialect.construct_alter_table(table.name, additions, removals)
         engine.execute(sql)
+        return True
 
     def get_engine(self, **tokens):
         engine, sessions = self._acquire_engine(tokens)
