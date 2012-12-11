@@ -206,7 +206,7 @@ def Float(minimum=None, maximum=None, **params):
 
 def ForeignKey(column, **params):
     column_params = {}
-    for name in ('name', 'default', 'doc', 'index', 'info', 'nullable', 'unique', 'primary_key'):
+    for name in ('name', 'type_', 'default', 'doc', 'index', 'info', 'nullable', 'unique', 'primary_key'):
         if name in params:
             column_params[name] = params.pop(name)
 
