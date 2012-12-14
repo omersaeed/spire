@@ -1,4 +1,5 @@
-from mesh.exceptions import GoneError
+from mesh.constants import *
+from mesh.exceptions import GoneError, NotFoundError
 from mesh.standard import Controller
 from sqlalchemy.sql import asc, desc, func, not_
 
@@ -306,18 +307,22 @@ class ProxyController(Unit, Controller):
 
         try:
             query_results = self.proxy_model.query(**data).all()
-        except GoneError:
+        except NotFoundError:
             query_results = []
+            total = 0
+            status = OK
+        else:
+            total = query_results.total
+            status = query_results.status
 
         resources = []
         for result in query_results:
             resource = self._construct_resource(request, result, data)
             self._annotate_resource(request, resource, result, data)
-            if resource is False:
-                continue
             resources.append(self._prune_resource(resource, data))
 
-        response({'resources': resources, 'total': len(resources)})
+        response(status=status, 
+                 content={'resources': resources, 'total': total})
 
     def update(self, request, response, subject, data):
         if data:
