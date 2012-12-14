@@ -1,4 +1,4 @@
-from mesh.constants import *
+from mesh.constants import OK
 from mesh.exceptions import GoneError, NotFoundError
 from mesh.standard import Controller
 from sqlalchemy.sql import asc, desc, func, not_
