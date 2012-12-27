@@ -1,7 +1,7 @@
 from mesh.constants import OK
 from mesh.exceptions import GoneError, NotFoundError
 from mesh.standard import Controller
-from sqlalchemy.sql import asc, desc, func, not_
+from sqlalchemy.sql import asc, column, desc, func, literal_column, not_, select
 
 from spire.core import Unit
 from spire.schema import NoResultFound
@@ -129,6 +129,24 @@ class ModelController(Unit, Controller):
     def get(self, request, response, subject, data):
         response(self._construct_resource(request, subject, data))
 
+    def load(self, request, response, subject, data):
+        identifiers = []
+        for i, identifier in enumerate(data['identifiers']):
+            identifiers.append('(%d, %r)' % (i, identifier))
+
+        expr = select([column('rank'), column('id')],
+            from_obj="(values %s as subset(rank, id)" % ', '.join(identifiers))
+
+        query = self.schema.session.query(self.model)
+        query = query.join(expr.cte('__subset__'),
+            literal_column('__subset__.id')==self.model.id)
+
+        resources = []
+        for instance in query.all():
+            resources.append(self._construct_resource(request, instance, None))
+
+        response(resources)
+
     def put(self, request, response, subject, data):
         if subject:
             self.update(request, response, subject, data)
@@ -252,7 +270,6 @@ class ModelController(Unit, Controller):
 
     def _get_model_value(self, model, name):
         return getattr(model, self.mapping[name])
-
 
 class ProxyController(Unit, Controller):
     """A mesh controller for mesh proxy models."""

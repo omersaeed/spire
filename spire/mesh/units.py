@@ -1,5 +1,7 @@
 from __future__ import absolute_import
+import json
 
+from mesh.binding.python import Binding
 from mesh.transport.http import HttpClient, HttpProxy, HttpServer
 from scheme import *
 from scheme.supplemental import ObjectReference
@@ -7,13 +9,29 @@ from scheme.supplemental import ObjectReference
 from spire.core import *
 from spire.context import ContextMiddleware, HeaderParser
 from spire.local import ContextLocals
+from spire.schema.fields import Column, TypeDecorator, types
 from spire.wsgi.application import Request
 from spire.wsgi.util import Mount
 
-__all__ = ('ExplicitContextManager', 'MeshClient', 'MeshProxy', 'MeshDependency', 'MeshServer')
+__all__ = ('Definition', 'DefinitionType', 'ExplicitContextManager', 'MeshClient',
+    'MeshProxy', 'MeshDependency', 'MeshServer')
 
 CONTEXT_HEADER_PREFIX = 'X-SPIRE-'
 ContextLocal = ContextLocals.declare('mesh.context')
+
+class DefinitionType(TypeDecorator):
+    impl = types.Text
+
+    def process_bind_param(self, value, dialect):
+        if value is not None:
+            return json.dumps(value.describe(), sort_keys=True)
+
+    def process_result_value(self, value, dialect):
+        if value is not None:
+            return Field.reconstruct(json.loads(value))
+
+def Definition(**params):
+    return Column(DefinitionType(), **params)
 
 class MeshClient(Unit):
     configuration = Configuration({
@@ -23,7 +41,6 @@ class MeshClient(Unit):
         'specification': ObjectReference(nonnull=True),
         'timeout': Integer(default=120),
         'url': Text(nonempty=True),
-        'version': Text(nonempty=True),
     })
 
     def __init__(self, client, url, timeout):
@@ -31,7 +48,7 @@ class MeshClient(Unit):
         if not specification:
             bundle = self.configuration.get('bundle')
             if bundle:
-                specification = bundle.specify(self.configuration['version'])
+                specification = bundle.specify()
             else:
                 raise Exception()
 
@@ -73,23 +90,22 @@ class MeshProxy(Mount):
             return request.context
 
 class MeshDependency(Dependency):
-    def __init__(self, name, version, proxy=False, optional=False, deferred=False,
+    def __init__(self, name, proxy=False, optional=False, deferred=False,
             unit=None, **params):
 
         self.name = name
-        self.version = version
 
         if proxy:
-            token = 'mesh-proxy:%s-%s' % (name, version)
+            token = 'mesh-proxy:%s' % name
             unit = unit or MeshProxy
         else:
-            token = 'mesh:%s-%s' % (name, version)
+            token = 'mesh:%s' % name
             unit = unit or MeshClient
 
         super(MeshDependency, self).__init__(unit, token, optional, deferred, **params)
 
     def contribute_params(self):
-        return {'name': self.name, 'version': self.version}
+        return {'name': self.name}
 
 class MeshServer(Mount):
     configuration = Configuration({
