@@ -132,14 +132,14 @@ class ModelController(Unit, Controller):
     def load(self, request, response, subject, data):
         identifiers = []
         for i, identifier in enumerate(data['identifiers']):
-            identifiers.append('(%d, %r)' % (i, identifier))
+            identifiers.append("(%d, '%s')" % (i, str(identifier)))
 
         expr = select([column('rank'), column('id')],
-            from_obj="(values %s as subset(rank, id)" % ', '.join(identifiers))
+            from_obj="(values %s) as subset(rank, id)" % ', '.join(identifiers))
 
-        query = self.schema.session.query(self.model)
-        query = query.join(expr.cte('__subset__'),
-            literal_column('__subset__.id')==self.model.id)
+        query = (self.schema.session.query(self.model)
+            .join(expr.cte('__subset__'), literal_column('__subset__.id')==self.model.id)
+            .order_by(literal_column('__subset__.rank')))
 
         resources = []
         for instance in query.all():

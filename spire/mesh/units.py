@@ -33,13 +33,26 @@ class DefinitionType(TypeDecorator):
 def Definition(**params):
     return Column(DefinitionType(), **params)
 
+def get_mesh_context():
+    context = ContextLocal.get()
+    if context:
+        return context
+
+    request = Request.current_request()
+    if request:
+        return request.context
+
+def construct_mesh_client(url, specification, timeout=None, client=HttpClient):
+    return client(url, specification, get_mesh_context, timeout=timeout,
+        context_header_prefix=CONTEXT_HEADER_PREFIX)
+
 class MeshClient(Unit):
     configuration = Configuration({
         'bundle': ObjectReference(nonnull=True),
         'client': ObjectReference(nonnull=True, required=True, default=HttpClient),
         'name': Text(nonempty=True),
         'specification': ObjectReference(nonnull=True),
-        'timeout': Integer(default=120),
+        'timeout': Integer(default=180),
         'url': Text(nonempty=True),
     })
 
@@ -52,8 +65,8 @@ class MeshClient(Unit):
             else:
                 raise Exception()
 
-        self.instance = client(url, specification, self._construct_context,
-            context_header_prefix=CONTEXT_HEADER_PREFIX, timeout=timeout).register()
+        self.instance = construct_mesh_client(url, specification, timeout, client)
+        self.instance.register()
 
     def execute(self, *args, **params):
         return self.instance.execute(*args, **params)
@@ -63,15 +76,6 @@ class MeshClient(Unit):
 
     def ping(self):
         return self.instance.ping()
-
-    def _construct_context(self):
-        context = ContextLocal.get()
-        if context:
-            return context
-
-        request = Request.current_request()
-        if request:
-            return request.context
 
 class MeshProxy(Mount):
     configuration = Configuration({
