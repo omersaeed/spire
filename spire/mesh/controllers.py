@@ -1,4 +1,4 @@
-from mesh.constants import OK
+from mesh.constants import OK, RETURNING
 from mesh.exceptions import GoneError, NotFoundError
 from mesh.standard import Controller
 from sqlalchemy.sql import asc, column, desc, func, literal_column, not_, select
@@ -6,7 +6,7 @@ from sqlalchemy.sql import asc, column, desc, func, literal_column, not_, select
 from spire.core import Unit
 from spire.schema import NoResultFound
 
-__all__ = ('ModelController', 'ProxyController',)
+__all__ = ('ModelController', 'ProxyController', 'support_returning')
 
 EMPTY = []
 
@@ -114,12 +114,14 @@ class ModelController(Unit, Controller):
             return None
 
     def create(self, request, response, subject, data):
+        returning = data.pop(RETURNING, None)
+
         instance = self.model.polymorphic_create(self._construct_model(data))
         self._annotate_model(request, instance, data)
 
         self.schema.session.add(instance)
         self.schema.session.commit()
-        response({'id': self._get_model_value(instance, 'id')})
+        response(self._construct_returning(instance, returning))
 
     def delete(self, request, response, subject, data):
         subject.session.delete(subject)
@@ -182,11 +184,13 @@ class ModelController(Unit, Controller):
         response({'total': total, 'resources': resources})
 
     def update(self, request, response, subject, data):
+        returning = data.pop(RETURNING, None)
         if data:
             subject.update_with_mapping(self._construct_model(data))
             self._annotate_model(request, subject, data)
             subject.session.commit()
-        response({'id': self._get_model_value(subject, 'id')})
+
+        response(self._construct_returning(subject, returning))
 
     def _annotate_model(self, request, model, data):
         pass
@@ -226,10 +230,7 @@ class ModelController(Unit, Controller):
         return model
 
     def _construct_resource(self, request, model, data, **resource):
-        mapping = self.mapping
-        if self.polymorphic_on:
-            identity = getattr(model, self.polymorphic_on[1])
-            mapping = self.polymorphic_mapping[identity]
+        mapping = self._get_mapping(model)
 
         include = exclude = EMPTY
         if data:
@@ -250,6 +251,21 @@ class ModelController(Unit, Controller):
         self._annotate_resource(request, model, resource, data)
         return resource
 
+    def _construct_returning(self, model, returning, response=None):
+        if response is None:
+            response = {}
+        if 'id' not in response:
+            response['id'] = self._get_model_value(model, 'id')
+        if returning:
+            mapping = self._get_mapping(model)
+            for name in returning:
+                if name in mapping and name not in response:
+                    try:
+                        response[name] = getattr(model, mapping[name])
+                    except AttributeError:
+                        pass
+        return response
+
     def _construct_sorting(self, query, sorting):
         columns = []
         for attr in sorting:
@@ -268,8 +284,22 @@ class ModelController(Unit, Controller):
 
         return query.order_by(*columns)
 
+    def _get_mapping(self, model):
+        if self.polymorphic_on:
+            identity = getattr(model, self.polymorphic_on[1])
+            return self.polymorphic_mapping[identity]
+        else:
+            return self.mapping
+
     def _get_model_value(self, model, name):
         return getattr(model, self.mapping[name])
+
+def support_returning(method):
+    def wrapper(self, request, response, subject, data):
+        returning = data.pop(RETURNING, None)
+        model = method(self, request, response, subject, data)
+        response(self._construct_returning(model, returning))
+    return wrapper
 
 class ProxyController(Unit, Controller):
     """A mesh controller for mesh proxy models."""
