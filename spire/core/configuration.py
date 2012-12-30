@@ -2,7 +2,6 @@ from scheme import Structure
 
 __all__ = ('Configuration', 'configured_property')
 
-
 class Configuration(object):
     """A unit configuration definition."""
 
@@ -48,7 +47,6 @@ class Configuration(object):
 
     def process(self, data, partial=False):
         return self.schema.process(data, serialized=True, partial=partial)
-
 
 class configured_property(object):
     """A property which delegates to a unit's configuration."""

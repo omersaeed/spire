@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 import json
 
-from mesh.binding.python import Binding
+from mesh.binding.python import bind
 from mesh.transport.http import HttpClient, HttpProxy, HttpServer
 from scheme import *
 from scheme.supplemental import ObjectReference
@@ -42,19 +42,23 @@ def get_mesh_context():
     if request:
         return request.context
 
-def construct_mesh_client(url, specification, timeout=None, client=HttpClient):
-    return client(url, specification, get_mesh_context, timeout=timeout,
+def construct_mesh_client(url, specification=None, timeout=None, client=HttpClient, bundle=None):
+    return client(url, specification, get_mesh_context, timeout=timeout, bundle=bundle,
         context_header_prefix=CONTEXT_HEADER_PREFIX)
 
 class MeshClient(Unit):
     configuration = Configuration({
         'bundle': ObjectReference(nonnull=True),
         'client': ObjectReference(nonnull=True, required=True, default=HttpClient),
+        'introspect': Boolean(default=False),
         'name': Text(nonempty=True),
         'specification': ObjectReference(nonnull=True),
         'timeout': Integer(default=180),
         'url': Text(nonempty=True),
     })
+
+    name = configured_property('name')
+    url = configured_property('url')
 
     def __init__(self, client, url, timeout):
         specification = self.configuration.get('specification')
@@ -62,11 +66,19 @@ class MeshClient(Unit):
             bundle = self.configuration.get('bundle')
             if bundle:
                 specification = bundle.specify()
-            else:
-                raise Exception()
+        if not specification and not self.configuration.get('introspect'):
+            raise Exception()
 
-        self.instance = construct_mesh_client(url, specification, timeout, client)
+        self.cache = {}
+        self.instance = construct_mesh_client(url, specification, timeout, client, self.name)
         self.instance.register()
+
+    def bind(self, name, mixin_modules=None):
+        try:
+            return self.cache[name]
+        except KeyError:
+            self.cache[name] = bind(self.instance.specification, name, mixin_modules)
+            return self.cache[name]
 
     def execute(self, *args, **params):
         return self.instance.execute(*args, **params)
@@ -83,6 +95,8 @@ class MeshProxy(Mount):
         'url': Text(nonempty=True),
     })
 
+    url = configured_property('url')
+
     def __init__(self, url, timeout):
         self.application = HttpProxy(url, self._construct_context, context_key='request.context',
             context_header_prefix=CONTEXT_HEADER_PREFIX, timeout=timeout)
@@ -98,7 +112,6 @@ class MeshDependency(Dependency):
             unit=None, **params):
 
         self.name = name
-
         if proxy:
             token = 'mesh-proxy:%s' % name
             unit = unit or MeshProxy
