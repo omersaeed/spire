@@ -56,7 +56,7 @@ class SessionMiddleware(Unit, Middleware):
         params = self.configuration['cookie']
         return dump_cookie(params['name'], session.sid, params.get('max_age'),
             params.get('expires'), params.get('path', '/'), params.get('domain'),
-            params.get('secure'), params.get('httponly', False))
+            params.get('secure'), params.get('httponly', True))
 
     def _get_session(self, environ):
         cookie = parse_cookie(environ.get('HTTP_COOKIE', ''))
