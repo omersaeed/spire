@@ -1,12 +1,16 @@
 from scheme import Boolean, Integer, Structure, Text
 from scheme.supplemental import ObjectReference
-from werkzeug.contrib.sessions import FilesystemSessionStore, SessionStore, Session
+from werkzeug.contrib.sessions import FilesystemSessionStore, SessionStore, Session, generate_key
 from werkzeug.utils import dump_cookie, parse_cookie
 from werkzeug.wsgi import ClosingIterator
 
 from spire.core import Configuration, Unit, configured_property
 from spire.util import pruned
 from spire.wsgi.util import Middleware
+
+class Session(Session):
+    def rekey(self):
+        self.sid = generate_key()
 
 class SessionMiddleware(Unit, Middleware):
     """A session middleware."""
@@ -32,7 +36,8 @@ class SessionMiddleware(Unit, Middleware):
     enabled = configured_property('enabled')
 
     def __init__(self, store):
-        self.store = store['implementation'](**pruned(store, 'implementation'))
+        self.store = store['implementation'](session_class=Session,
+            **pruned(store, 'implementation'))
 
     def dispatch(self, application, environ, start_response):
         session = None
