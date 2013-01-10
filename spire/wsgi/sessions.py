@@ -1,14 +1,25 @@
+from datetime import datetime
+
 from scheme import Boolean, Integer, Structure, Text
 from scheme.supplemental import ObjectReference
 from werkzeug.contrib.sessions import FilesystemSessionStore, SessionStore, Session, generate_key
-from werkzeug.utils import dump_cookie, parse_cookie
+from werkzeug.http import dump_cookie, parse_cookie
 from werkzeug.wsgi import ClosingIterator
 
 from spire.core import Configuration, Unit, configured_property
 from spire.util import pruned
 from spire.wsgi.util import Middleware
 
+LONG_AGO = datetime(2000, 1, 1)
+
 class Session(Session):
+    def __init__(self, data, sid, new=False):
+        super(Session, self).__init__(data, sid, new)
+        self.expired = False
+
+    def expire(self):
+        self.expired = True
+
     def rekey(self):
         self.sid = generate_key()
 
@@ -50,7 +61,10 @@ class SessionMiddleware(Unit, Middleware):
             return application(environ, start_response)
 
         def injecting_start_response(status, headers, exc_info=None):
-            if session.should_save:
+            if session.expired:
+                headers.append(('Set-Cookie', self._construct_cookie(session, True)))
+                self.store.delete(session)
+            elif session.should_save:
                 self.store.save(session)
                 headers.append(('Set-Cookie', self._construct_cookie(session)))
             return start_response(status, headers, exc_info)
@@ -58,10 +72,12 @@ class SessionMiddleware(Unit, Middleware):
         return ClosingIterator(application(environ, injecting_start_response),
             lambda: self.store.save_if_modified(session))
 
-    def _construct_cookie(self, session):
+    def _construct_cookie(self, session, unset=False):
         params = self.configuration['cookie']
+        expires = (LONG_AGO if unset else params.get('expires'))
+
         return dump_cookie(params['name'], session.sid, params.get('max_age'),
-            params.get('expires'), params.get('path', '/'), params.get('domain'),
+            expires, params.get('path', '/'), params.get('domain'),
             params.get('secure'), params.get('httponly', True))
 
     def _get_session(self, environ):
