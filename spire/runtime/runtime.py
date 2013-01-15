@@ -2,20 +2,21 @@ from glob import glob
 from threading import Lock
 from time import sleep
 
-from scheme import Boolean, Format, Integer, Sequence, Structure
-from scheme.supplemental import ObjectReference
+from scheme import Boolean, Format, Integer, Object, Sequence, Structure
 
 from spire.core import Assembly
 from spire.exceptions import TemporaryStartupError
 from spire.support.logs import LogHelper, configure_logging
 from spire.util import enumerate_tagged_methods, recursive_merge, topological_sort
 
-COMPONENTS_SCHEMA = Sequence(ObjectReference(nonnull=True), unique=True)
+COMPONENTS_SCHEMA = Sequence(Object(name='component', nonnull=True),
+    name='components', unique=True)
+
 PARAMETERS_SCHEMA = Structure({
     'startup_attempts': Integer(default=12),
     'startup_enabled': Boolean(default=True),
     'startup_timeout': Integer(default=5),
-})
+}, name='parameters')
 
 log = LogHelper('spire.runtime')
 
