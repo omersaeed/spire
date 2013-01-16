@@ -132,8 +132,12 @@ class ModelController(Unit, Controller):
         response(self._construct_resource(request, subject, data))
 
     def load(self, request, response, subject, data):
+        candidates = data['identifiers']
+        if not candidates:
+            return response([])
+
         identifiers = []
-        for i, identifier in enumerate(data['identifiers']):
+        for i, identifier in enumerate(candidates):
             identifiers.append("(%d, '%s')" % (i, str(identifier)))
 
         expr = select([column('rank'), column('id')],
