@@ -11,9 +11,9 @@ from spire.util import uniqid
 __all__ = ('Array', 'ArrayType', 'Boolean', 'BooleanType', 'Date', 'DateType',
     'DateTime', 'DateTimeType', 'Decimal', 'DecimalType', 'Email', 'EmailType',
     'Enumeration', 'EnumerationType', 'Float', 'FloatType', 'ForeignKey',
-    'Hstore', 'HstoreType', 'Identifier', 'Integer', 'IntegerType', 'Serialized',
-    'SerializedType', 'Text', 'TextType', 'Time', 'TimeType', 'Token', 'TokenType',
-    'UUID', 'UUIDType')
+    'Hstore', 'HstoreType', 'Identifier', 'Integer', 'IntegerType', 'Json',
+    'JsonType', 'Serialized', 'SerializedType', 'Text', 'TextType', 'Time',
+    'TimeType', 'Token', 'TokenType', 'UUID', 'UUIDType')
 
 class TypeDecorator(TypeDecorator):
     def __repr__(self):
@@ -109,6 +109,17 @@ class IntegerType(TypeDecorator, ValidatesMinMax):
         super(IntegerType, self).__init__()
         self.minimum = minimum
         self.maximum = maximum
+
+class JsonType(TypeDecorator):
+    impl = types.Text
+
+    def process_bind_param(self, value, dialect):
+        if value is not None:
+            return json.dumps(value, sort_keys=True)
+
+    def process_result_value(self, value, dialect):
+        if value is not None:
+            return json.loads(value)
 
 class SerializedType(TypeDecorator):
     impl = types.Text
@@ -220,6 +231,9 @@ def Identifier(**params):
 
 def Integer(minimum=None, maximum=None, **params):
     return Column(IntegerType(minimum, maximum), **params)
+
+def Json(**params):
+    return Column(JsonType(), **params)
 
 def Serialized(**params):
     return Column(SerializedType(), **params)
