@@ -10,6 +10,24 @@ __all__ = ('ModelController', 'ProxyController', 'support_returning')
 
 EMPTY = []
 
+class FieldFilter(object):
+    def __init__(self, controller, data):
+        if not data:
+            self.fields = controller.default_fields
+            return
+        if 'fields' in data:
+            self.fields = set(data['fields'])
+            return
+
+        self.fields = controller.default_fields.copy()
+        if 'include' in data:
+            self.fields.update(data['include'])
+        if 'exclude' in data:
+            self.fields.difference_update(data['exclude'])
+
+    def __contains__(self, field):
+        return (field in self.fields)
+
 class FilterOperators(object):
     def equal_op(self, query, column, value):
         return query.filter(column == value)
@@ -81,9 +99,10 @@ def parse_attr_mapping(mapping):
 class ModelController(Unit, Controller):
     """A mesh controller for spire.schema models."""
 
-    model = None
+    default_fields = None
     schema = None
     mapping = None
+    model = None
     polymorphic_mapping = None
     polymorphic_on = None
     operators = FilterOperators()
@@ -92,6 +111,11 @@ class ModelController(Unit, Controller):
     def __construct__(cls):
         Controller.__construct__()
         if cls.resource:
+            cls.default_fields = set()
+            for name, field in cls.resource.schema.iteritems():
+                if field.is_identifier or not field.deferred:
+                    cls.default_fields.add(name)
+
             mapping = cls.polymorphic_mapping
             if mapping:
                 for identity, submapping in mapping.items():
@@ -149,7 +173,7 @@ class ModelController(Unit, Controller):
 
         resources = []
         for instance in query.all():
-            resources.append(self._construct_resource(request, instance, None))
+            resources.append(self._construct_resource(request, instance, data))
 
         response(resources)
 
@@ -235,22 +259,14 @@ class ModelController(Unit, Controller):
 
     def _construct_resource(self, request, model, data, **resource):
         mapping = self._get_mapping(model)
+        fields = FieldFilter(self, data)
 
-        include = exclude = EMPTY
-        if data:
-            include = data.get('include', EMPTY)
-            exclude = data.get('exclude', EMPTY)
-
-        schema = self.resource.schema
         for name, attr in mapping.iteritems():
-            field = schema[name]
-            if not field.is_identifier:
-                if name in exclude or (field.deferred and name not in include):
-                    continue
-            try:
-                resource[name] = getattr(model, attr)
-            except AttributeError:
-                pass
+            if name in fields:
+                try:
+                    resource[name] = getattr(model, attr)
+                except AttributeError:
+                    pass
 
         self._annotate_resource(request, model, resource, data)
         return resource
