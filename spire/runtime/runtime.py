@@ -2,7 +2,7 @@ from glob import glob
 from threading import Lock
 from time import sleep
 
-from scheme import Boolean, Format, Integer, Object, Sequence, Structure
+from scheme import *
 
 from spire.core import Assembly
 from spire.exceptions import TemporaryStartupError
@@ -13,6 +13,7 @@ COMPONENTS_SCHEMA = Sequence(Object(name='component', nonnull=True),
     name='components', unique=True)
 
 PARAMETERS_SCHEMA = Structure({
+    'name': Text(),
     'startup_attempts': Integer(default=12),
     'startup_enabled': Boolean(default=True),
     'startup_timeout': Integer(default=5),
