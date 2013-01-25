@@ -51,12 +51,13 @@ class Runtime(object):
                 return
 
         includes = configuration.pop('include', None)
+        recursive_merge(self.configuration, configuration)
+
         if includes:
             for pattern in includes:
                 for include in sorted(glob(pattern)):
                     self.configure(include)
 
-        recursive_merge(self.configuration, configuration)
         return self
 
     def deploy(self):
